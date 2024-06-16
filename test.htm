@@ -36,6 +36,8 @@
 //レールの寸法
 	const baselength = 80;
 	const basewidth = 14;
+	const lineWidthArray = [basewidth, 12, 6, 4];
+	const colorArray = ["#000000", "#51b5ff", "#1970c1", "#51b5ff"];
 
 	var observ = null;
 
@@ -93,18 +95,45 @@
 	    rails.push(rail);
 		CalcCurveEnd(x,y,angle,type,1.0);	     
        }
+	//ジョイントを描画
+		function drawJoint(x,y,angle){
+		
+	   // 矢印を描画
+			const arrowLength = basewidth / 2 ; // 矢印の長さ
+				ctx.strokeStyle = colorArray[0];
+				ctx.lineWidth = 1;
+				ctx.beginPath();
+				ctx.moveTo(
+					x + arrowLength * Math.cos(angle * Math.PI/180), 
+					y + arrowLength * Math.sin(angle * Math.PI/180)
+				);
+				ctx.lineTo(
+					x  - arrowLength * Math.cos(angle * Math.PI/180),
+					y  - arrowLength * Math.sin(angle * Math.PI/180)
+				);
+				ctx.stroke();
+
+		
+		}
+
 	
 	//直線レール描画
         function drawStraight(x,y,angle,ratio,id) {
 		const sinalpha = baselength * ratio * Math.sin(angle * Math.PI/180);
 		const cosalpha = baselength * ratio * Math.cos(angle * Math.PI/180);
-               	ctx.beginPath();
-                ctx.strokeStyle = 'blue';
-		ctx.lineWidth = basewidth;
-		ctx.moveTo(x,y);
-		ctx.lineTo(x +sinalpha,  y - cosalpha);
-		ctx.stroke();
+               	
 
+		for (var i = 0; i < 4; i++) {
+                ctx.strokeStyle = colorArray[i];
+				ctx.lineWidth = lineWidthArray[i];
+				ctx.beginPath();
+				ctx.moveTo(x,y);
+				ctx.lineTo(x +sinalpha,  y - cosalpha);
+				ctx.stroke();
+		}
+		
+		
+				drawJoint(x,y,angle);
                 ctx.fillStyle = 'white';
                 ctx.fillText(id.toString(), x+sinalpha*0.5-5 , y - cosalpha*0.5);
 	}
@@ -122,24 +151,32 @@
         function drawCurve(x,y,angle,type,ratio,id) {
 		let sinalpha = baselength * ratio * Math.sin(angle * Math.PI/180);
 		let cosalpha = baselength * ratio * Math.cos(angle * Math.PI/180);
+		
+		drawJoint(x,y,angle);
 
 		if(type == 'R'){ 
 			var startangle = Math.PI+ angle * Math.PI/180;
 			var endangle   = Math.PI*0.25+ startangle;	
-            ctx.beginPath();
-                ctx.strokeStyle = 'blue';
-				ctx.lineWidth = basewidth;
+
+				for (var i = 0; i < 4; i++) {
+                ctx.strokeStyle = colorArray[i];
+				ctx.lineWidth = lineWidthArray[i];
+				ctx.beginPath();
                	ctx.arc(x + cosalpha ,y + sinalpha , baselength, startangle, endangle);
-			ctx.stroke();
+				ctx.stroke();
+				}
+
 			}
 		if(type == 'L'){
 				startangle = angle * Math.PI/180;
 				endangle   = startangle - Math.PI*0.25;	
-            ctx.beginPath();
-                ctx.strokeStyle = 'blue';
-				ctx.lineWidth = basewidth;
-               	ctx.arc(x - cosalpha ,y - sinalpha , baselength, startangle, endangle,1);
-			ctx.stroke();
+				for (var i = 0; i < 4; i++) {
+                ctx.strokeStyle = colorArray[i];
+				ctx.lineWidth = lineWidthArray[i];
+				ctx.beginPath();
+              	ctx.arc(x - cosalpha ,y - sinalpha , baselength, startangle, endangle,1);
+				ctx.stroke();
+				}
 			}
                 //ctx.fillText(id.toString(), x + 5,y - 40);
 
@@ -223,9 +260,9 @@
 
         // マウスアップ時の処理
         canvas.addEventListener('mouseup', () => {
-		
-		CalcRailEnd(selectedRail.x,selectedRail.y,selectedRail.angle,selectedRail.type);
-
+		       if (selectedRail) {
+				CalcRailEnd(selectedRail.x,selectedRail.y,selectedRail.angle,selectedRail.type);
+				}
         selectedRectangle = null;
 	    selectedCurve = null;
 	    selectedRail = null;
