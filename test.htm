@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>プラレールレイアウトシミュレーション</title>
+    <style>
+        canvas {
+            border: 1px solid #000;
+        }
+    </style>
+</head>
+<body>
+    <button onclick="addRectangle(100,100,0);draw();">追加</button>
+    <button onclick="addCurve(200,100,0,'R');draw();">曲線追加</button>
+    <button onclick="addCurve(200,100,45,'R');draw();">曲線追加</button>
+    <button onclick="addCurve(200,300,90,'R');draw();">曲線追加</button>
+    <button onclick="addCurve(200,300,90,'L');draw();">曲線追加</button>
+    <button onclick="addCurve(200,300,0,'L');draw();">曲線追加</button>
+    <button onclick="addCurve(200,300,45,'L');draw();">曲線追加</button>
+    <button onclick="addCurve(200,300,135,'L');draw();">曲線追加</button>
+    <button onclick="addCurve(200,300,180,'L');draw();">曲線追加</button>
+<br>
+    <button onclick="addRail('S');draw();">直線</button>
+    <button onclick="addRail('R');draw();">右曲線</button>
+    <button onclick="addRail('L');draw();">左曲線</button>
+
+<br>
+    <canvas id="railCanvas" width="800" height="800"></canvas>
+    <script>
+        const canvas = document.getElementById('railCanvas');
+        const ctx = canvas.getContext('2d');
+        const rectangles = []; // 長方形の配列
+        const curves = []; // 曲線の配列
+        const rails = []; // レールの配列
+//レールの寸法
+	const baselength = 80;
+	const basewidth = 14;
+
+	var observ = null;
+
+	let num_rail = 0;
+	let dfx = 0;//マウスクリックと図形原点のずれ
+	let dfy = 0;
+
+	// 終点位置
+	const INIT_X = 400;
+	const INIT_Y = 200;
+	let endX;
+	let endY;
+	
+	// 終点の角度
+	var endAngleDeg; // -Y軸０　時計回り
+
+        let selectedRail = null; // 選択中の長方形
+
+	function initCourse() {
+		endX = INIT_X;
+		endY = INIT_Y;
+		endAngleDeg = 0;
+	}
+
+		//レールを追加
+		function addRail(type){switch(type){
+			case 'S':
+					addRectangle(endX, endY,endAngleDeg);break;
+			case 'R':case 'L':
+					addCurve(endX, endY,endAngleDeg,type);break;
+			}
+		}
+		//レール端点を計算
+		function CalcRailEnd(x,y,angle,type){
+		switch(type){
+			case 'S':
+					CalcStraightEnd(x,y,angle,1.0);break;
+			case 'R':case 'L':
+					CalcCurveEnd(x,y,angle,type,1.0);break;		
+		}
+		
+		
+		
+		}
+
+        // 直線を追加
+        function addRectangle(x, y,angle) {
+	    const rail = {x,y,angle,type:'S',id:num_rail++ };
+	    rails.push(rail);
+		CalcStraightEnd(x,y,angle,1.0);
+       }
+        // 曲線を追加
+        function addCurve(x, y,angle,type) {
+ 	    const rail = {x,y,angle,type,id:num_rail++ };
+	    rails.push(rail);
+		CalcCurveEnd(x,y,angle,type,1.0);	     
+       }
+	
+	//直線レール描画
+        function drawStraight(x,y,angle,ratio,id) {
+		const sinalpha = baselength * ratio * Math.sin(angle * Math.PI/180);
+		const cosalpha = baselength * ratio * Math.cos(angle * Math.PI/180);
+               	ctx.beginPath();
+                ctx.strokeStyle = 'blue';
+		ctx.lineWidth = basewidth;
+		ctx.moveTo(x,y);
+		ctx.lineTo(x +sinalpha,  y - cosalpha);
+		ctx.stroke();
+
+                ctx.fillStyle = 'white';
+                ctx.fillText(id.toString(), x+sinalpha*0.5-5 , y - cosalpha*0.5);
+	}
+
+	//直線レールの終点を計算
+		function CalcStraightEnd(x,y,angle,ratio){
+			const sinalpha = baselength * ratio * Math.sin(angle * Math.PI/180);
+			const cosalpha = baselength * ratio * Math.cos(angle * Math.PI/180);
+			endX = x + sinalpha;
+			endY = y - cosalpha;
+			endAngleDeg = angle;
+		}	
+
+	//曲線レール描画
+        function drawCurve(x,y,angle,type,ratio,id) {
+		let sinalpha = baselength * ratio * Math.sin(angle * Math.PI/180);
+		let cosalpha = baselength * ratio * Math.cos(angle * Math.PI/180);
+
+		if(type == 'R'){ 
+			var startangle = Math.PI+ angle * Math.PI/180;
+			var endangle   = Math.PI*0.25+ startangle;	
+            ctx.beginPath();
+                ctx.strokeStyle = 'blue';
+				ctx.lineWidth = basewidth;
+               	ctx.arc(x + cosalpha ,y + sinalpha , baselength, startangle, endangle);
+			ctx.stroke();
+			}
+		if(type == 'L'){
+				startangle = angle * Math.PI/180;
+				endangle   = startangle - Math.PI*0.25;	
+            ctx.beginPath();
+                ctx.strokeStyle = 'blue';
+				ctx.lineWidth = basewidth;
+               	ctx.arc(x - cosalpha ,y - sinalpha , baselength, startangle, endangle,1);
+			ctx.stroke();
+			}
+                //ctx.fillText(id.toString(), x + 5,y - 40);
+
+		}
+//カーブの端点を計算
+		function CalcCurveEnd(x,y,angle,type,ratio){
+		let sinalpha = baselength * ratio * Math.sin(angle * Math.PI/180);
+		let cosalpha = baselength * ratio * Math.cos(angle * Math.PI/180);
+
+		if(type == 'R'){ 
+			var startangle = Math.PI+ angle * Math.PI/180;
+			var endangle   = Math.PI*0.25+ startangle;	
+			endX = x + cosalpha + baselength * ratio * Math.cos(endangle);
+			endY = y + sinalpha + baselength * ratio * Math.sin(endangle);
+			endAngleDeg = angle + 45;
+			}
+		if(type == 'L'){
+				startangle = angle * Math.PI/180;
+				endangle   = startangle - Math.PI*0.25;	
+			endX = x - cosalpha + baselength * ratio * Math.cos(endangle);
+			endY = y - sinalpha + baselength * ratio * Math.sin(endangle);
+			endAngleDeg = angle - 45;
+			}
+		
+		}
+
+
+        // 描画
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+ 
+
+	    rails.forEach(rail => {switch(rail.type){
+		case 'S':
+			drawStraight(rail.x, rail.y, rail.angle,1,rail.id); break;
+		case 'R':
+			drawCurve(rail.x, rail.y,rail.angle,'R',1,rail.id); break;
+		case 'L':
+			drawCurve(rail.x, rail.y,rail.angle,'L',1,rail.id); break;
+		default:
+
+		}
+	
+	//drawArrow(400,400,0,90,130,8,'red',1);
+//	drawArrowset(200,400,0);
+
+
+	    });
+
+
+        }
+
+        // マウスクリック時の処理
+        canvas.addEventListener('mousedown', (e) => {
+            const mouseX = e.clientX - canvas.getBoundingClientRect().left;
+            const mouseY = e.clientY - canvas.getBoundingClientRect().top;
+
+
+	    selectedRail = rails.find(rail =>	isPointOnRail(mouseX, mouseY, rail.x , rail.y,rail.angle, rail.type) );
+
+	    if(IsPointOnArrow(mouseX,mouseY,400,400,0,90,130,8,'red',1));
+
+//クリックと原点の差を取得 
+	　　if(selectedRail){
+                dfx = selectedRail.x - mouseX;
+                dfy = selectedRail.y - mouseY;
+	    }
+
+
+
+       });
+
+        // マウス移動時の処理
+        canvas.addEventListener('mousemove', (e) => {
+           if (selectedRail) {
+                selectedRail.x = e.clientX - canvas.getBoundingClientRect().left + dfx;
+                selectedRail.y = e.clientY - canvas.getBoundingClientRect().top + dfy;
+                draw();
+            }
+        });
+
+        // マウスアップ時の処理
+        canvas.addEventListener('mouseup', () => {
+		
+		CalcRailEnd(selectedRail.x,selectedRail.y,selectedRail.angle,selectedRail.type);
+
+        selectedRectangle = null;
+	    selectedCurve = null;
+	    selectedRail = null;
+	    dfx = 0;
+	    dfy = 0;
+
+//ここに、レール端点が近かったら自動で移動させるプロセスを追加
+
+
+
+        });
+
+
+	// マウスダブルクリック時の処理
+
+        canvas.addEventListener('dblclick', (e) => {
+            const mouseX = e.clientX - canvas.getBoundingClientRect().left;
+            const mouseY = e.clientY - canvas.getBoundingClientRect().top;
+
+             rails.forEach((rail,index) =>{observ = rail.id;
+                if (isPointOnRail(mouseX, mouseY,rail.x,rail.y,rail.angle,rail.type)) {
+                    rails.splice(index, 1); // 長方形を配列から取り除く
+		    draw();
+                }
+
+            });
+
+
+
+
+        });
+
+//点がレール上にあるかどうかを判定する関数
+	function isPointOnRail(pointX,pointY,x,y,angle,type){switch(type){
+		case 'S':
+			return isPointInRectangle(pointX, pointY,x,y,angle,  baselength ); break;
+		case 'R':
+			return isPointInArc(pointX, pointY, x, y, angle,type, baselength); break;
+		case 'L':
+			return isPointInArc(pointX, pointY, x, y, angle,type,  baselength); break;
+		default:return 0;
+
+		}
+	
+
+
+	}
+
+
+
+	// 点が直線上にあるかどうかを判定する関数
+	function isPointInRectangle(pointX, pointY,sx,sy,angle, radius){
+	//起点（sx,sy)から長さradiusで引かれた直線上に（pointX,pointY)があるか
+		const a = radius * Math.sin( angle * Math.PI/180);
+		const b = - radius * Math.cos( angle * Math.PI/180);
+		const r2 = radius * radius ;
+		const tt = -(a*(sx - pointX) + b * (sy - pointY));
+		const f1 = a * (sy - pointY) - b * (sx - pointX);
+		const distance2 = basewidth * basewidth * 0.25 * 0.9; 
+		return tt>0 && tt< r2 && (f1 * f1)/r2 < distance2;
+	}
+
+
+        // 点が円弧内にあるかどうかを判定する関数(R)
+        function isPointInArc(pointX, pointY, arcX, arcY,angle,type, radius) {
+	// R:1, L:-1 
+	    const a = type == 'R'? 1:-1 ;
+            const sinalpha = radius * Math.sin(angle * Math.PI/180);
+	    const cosalpha = radius * Math.cos(angle * Math.PI/180);
+            const dx = pointX - arcX - a * cosalpha;
+            const dy = pointY - arcY - a * sinalpha;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+		
+            return (distance <= radius +0.5*basewidth) && (distance > radius -0.5*basewidth);
+        }
+
+//操作用の矢印をセットで表示させる関数
+	function drawArrowset(x,y,angle){
+	const r1 = 70;
+	const r2 = 25;
+	const r3 = 30;
+	const s1 = -30;
+	const s2 = 15;
+	const angle_rad = angle * Math.PI/180;
+
+	const xa = x - Math.sin(angle_rad) * s1;
+	const ya = y + Math.cos(angle_rad) * s1;
+	const xb = x + r1 * Math.cos(Math.PI/3 -angle_rad); 
+	const yb = y - r1 * Math.sin(Math.PI/3 -angle_rad);
+	const xc = x - r1 * Math.cos(Math.PI/3 +angle_rad);
+	const yc = y - r1 * Math.sin(Math.PI/3 +angle_rad);
+
+	drawArrow(xa,ya, 60+angle, 120+angle,r3,8,'orange',0);
+	drawArrow(xa,ya,-60+angle,-120+angle,r3,8,'orange',1);
+
+	drawArrow(xb,yb,-90+angle,-30+angle,r2,8,'green',0);
+	drawArrow(xc,yc, 90+angle, 30+angle,r2,8,'green',1);
+	drawStArrow(x,y,angle,30,60,8,'green')
+
+               	ctx.beginPath();
+                ctx.strokeStyle = 'blue';
+				ctx.lineWidth = 1;
+               	ctx.arc(x  ,y  , r1, 0, Math.PI *2 ,1);
+				ctx.stroke();
+
+
+	}
+
+//操作用の直線矢印を描画する関数
+	function drawStArrow(x,y,angle,length,distance,width,color){
+	
+		const sinalpha1 = distance * Math.sin(angle * Math.PI/180);
+		const cosalpha1 = distance * Math.cos(angle * Math.PI/180);
+ 		const sinalpha2 = (distance+length) * Math.sin(angle * Math.PI/180);
+		const cosalpha2 = (distance+length) * Math.cos(angle * Math.PI/180);
+              	ctx.beginPath();
+                ctx.strokeStyle = color;
+		ctx.lineWidth = width;
+		ctx.moveTo(x +sinalpha1, y - cosalpha1);
+		ctx.lineTo(x +sinalpha2, y - cosalpha2);
+		ctx.stroke();
+
+   // 矢印を描画
+  const arrowLength = width ; // 矢印の長さ
+  const arrowAngle = Math.PI / 3; // 矢印の角度（ラジアン）
+  const arrowX = x + (arrowLength + distance+length) * Math.sin(angle * Math.PI/180); // 矢印の先端のx座標
+  const arrowY = y - (arrowLength + distance+length) * Math.cos(angle * Math.PI/180); // 矢印の先端のy座標
+  ctx.beginPath();
+  ctx.moveTo(arrowX, arrowY);
+  ctx.lineTo(
+  x + sinalpha2+ arrowLength * Math.cos(angle * Math.PI/180), 
+  y - cosalpha2+ arrowLength * Math.sin(angle * Math.PI/180)
+  );
+  ctx.lineTo(
+  x + sinalpha2 - arrowLength * Math.cos(angle * Math.PI/180),
+  y - cosalpha2 - arrowLength * Math.sin(angle * Math.PI/180)
+  );
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+
+
+	}
+
+
+//操作用の矢印を描画する関数
+	function drawArrow(x,y,a1,a2,radius,width,color,RotatDir){
+		const startangle =  a1 * Math.PI/180 +1.5* Math.PI;
+		const endangle   =  a2 * Math.PI/180 +1.5* Math.PI;
+		const p = RotatDir == 0 ? 1:-1;	
+               	ctx.beginPath();
+                ctx.strokeStyle = color;
+				ctx.lineWidth = width;
+               	ctx.arc(x  ,y  , radius, startangle, endangle,RotatDir);
+				ctx.stroke();
+   // 矢印を描画
+  const arrowLength = width ; // 矢印の長さ
+  const arrowAngle = Math.PI / 3; // 矢印の角度（ラジアン）
+  const arrowX = x + radius * Math.sin(a2* Math.PI/180)+ p * arrowLength * Math.cos(a2* Math.PI/180); // 矢印の先端のx座標
+  const arrowY = y - radius * Math.cos(a2* Math.PI/180)+ p * arrowLength * Math.sin(a2* Math.PI/180); // 矢印の先端のy座標
+  ctx.beginPath();
+  ctx.moveTo(arrowX, arrowY);
+  ctx.lineTo(
+    x + (radius + arrowLength) * Math.sin(a2* Math.PI/180),
+    y - (radius + arrowLength) * Math.cos(a2* Math.PI/180)
+  );
+  ctx.lineTo(
+    x + (radius - arrowLength) * Math.sin(a2* Math.PI/180),
+    y - (radius - arrowLength) * Math.cos(a2* Math.PI/180)
+  );
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+
+
+
+
+	}
+
+
+//操作用の矢印上にポイントがあるか確認する関数
+	function IsPointOnArrow(PointX,PointY,x,y,a1,a2,radius,width,color,RotatDir){
+	const dx = PointX - x;
+	const dy = PointY - y;
+	const r2 = dx * dx + dy *dy;
+	const angle_P = Math.atan2(dx,-dy);
+	//a1,a2は-180～180
+	a1 = (a1+180)%360-180;
+	a2 = (a2+180)%360-180; 
+	const a1_rad = a1* Math.PI /180;
+	const a2_rad = a2* Math.PI /180;
+	var IsInAngle = 0;
+//矢印は半円以内と仮定
+//時計回りの場合、a1が180未満、a2が180以上のとき断絶
+	if(RotatDir == 0){
+		if(a2<a1){IsInAngle = (angle_P < a2_rad) || (angle_P> a1_rad);}
+		else{ IsInAngle = (angle_P> a1_rad) && (angle_P < a2_rad);alert(a1 +"-"+ a2 +"-"+ IsInAngle);}
+
+	}else{
+//反時計回りの場合a1が180以上、a2が180未満のとき断絶
+		if(a2>a1){IsInAngle = (angle_P > a2_rad) || (angle_P< a1_rad);}
+		else{ IsInAngle = (angle_P< a1_rad) && (angle_P > a2_rad);}
+
+	}
+observ = angle_P;
+//	return r2 > (radius - width/2)**2 && r2 < (radius + width/2)**2 ;
+	 
+	return r2 > (radius - width/2)**2 && r2 < (radius + width/2)**2 && IsInAngle;
+	}
+
+        // 初期長方形を追加
+        addRectangle(100, 100,0);
+        addRectangle(200, 100,45);
+        addRectangle(300, 100,90);
+		initCourse();
+        draw();
+    </script>
+</body>
+</html>
