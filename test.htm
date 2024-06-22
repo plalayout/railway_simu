@@ -43,6 +43,13 @@ let scale = 1;
 		ctx.setTransform(1,0,0,1,0,0);
 	}
 
+//キャンバスを一回初期化して倍率とオフセットを設定する。
+	function canvasSetScale(){
+		ctx.restore();ctx.save();
+		ctx.setTransform(1,0,0,1,0,0);
+		ctx.translate(canvasOffsetX,canvasOffsetY);
+		ctx.scale(drawScale, drawScale);	
+	}
 
 
 
@@ -259,7 +266,8 @@ let scale = 1;
 
         // 描画
     function draw() {
-        ctx.clearRect(0 - canvasOffsetX, 0 - canvasOffsetY, canvas.width/drawScale, canvas.height/drawScale);
+		canvasSetScale();
+        ctx.clearRect(0 - canvasOffsetX/drawScale, 0 - canvasOffsetY/drawScale, canvas.width/drawScale, canvas.height/drawScale);
 			
  
 
@@ -314,8 +322,8 @@ let scale = 1;
 
 
 		if (isDraggingCanvas) {
-			const newX = e.movementX/drawScale;;
-			const newY = e.movementY/drawScale;
+			const newX = e.movementX;
+			const newY = e.movementY;
         // キャンバス全体を移動
 			ctx.translate(newX,newY);
 			canvasOffsetX += newX;
@@ -370,10 +378,13 @@ let scale = 1;
 	canvas.addEventListener("wheel", (e) => {
    		 const scaleFactor = e.deltaY > 0 ? 0.1 : -0.1;
 		 console.log(scaleFactor);
- 		   scale += scaleFactor;
-    		drawScale *= scale;
+ 		 drawScale += scaleFactor;
+		 
+		 //scale += scaleFactor;
+    	 //drawScale *= scale;
     // キャンバス全体を拡大縮小
- 		   ctx.scale(scale,scale);draw();
+ 	//	   ctx.scale(scale,scale);
+		draw();
 	});
 
 
