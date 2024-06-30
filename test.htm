@@ -17,7 +17,7 @@
     <button onclick="addRail('L');draw();">左曲線</button>
 
 <br>
-    <canvas id="railCanvas" width="800" height="800"></canvas>
+    <canvas id="railCanvas" width="750" height="750"></canvas>
     <script>
         const canvas = document.getElementById('railCanvas');
         const ctx = canvas.getContext('2d');
@@ -27,17 +27,24 @@
 		const joints = []; //ジョイント部の配列
 //画面ドラッグ関連
 let isDraggingCanvas = false;
-let canvasOffsetX = 0;
-let canvasOffsetY = 0;
+let canvasOffsetX = 375;
+let canvasOffsetY = 375;
 let drawScale = 1;
 let scale = 1;
 
+//タッチ関連
+	let preMouseX;
+	let preMouseY;
+	let prePinchDist;//タッチ時の最初のピンチ幅
+	let preScale;//タッチ開始時の縮尺
+
+   let setTOdrawID = null;
 
 
 	function scaleReset(){
 		scale = 1;drawScale=1.0;
-		canvasOffsetX = 0;
-		canvasOffsetY = 0;
+		canvasOffsetX = 375;
+		canvasOffsetY = 375;
 
 		ctx.restore();ctx.save();
 		ctx.setTransform(1,0,0,1,0,0);
@@ -68,8 +75,8 @@ let scale = 1;
 	let dfy = 0;
 
 	// 終点位置
-	const INIT_X = 200;
-	const INIT_Y = 400;
+	const INIT_X = 0;
+	const INIT_Y = 0;
 	let endX;
 	let endY;
 	
@@ -297,8 +304,39 @@ let scale = 1;
     drawRect(-50,-50,100,100);
     }
 
+
+  function draw_interval(){
+    clearTimeout(setTOdrawID);
+    setTOdrawID=setTimeout(draw,15);
+
+  }
+
+
+//マウスイベントの呼び出し
     // マウスクリック時の処理
-    canvas.addEventListener('mousedown', (e) => {
+    //canvas.addEventListener('mousedown', onDragStart);
+	//ドラッグ時
+    //canvas.addEventListener('mousemove', onDrag ,  false);
+    // マウスクリック時の処理
+    canvas.addEventListener('mousedown', onMouseStart);
+	//ドラッグ時
+    canvas.addEventListener('mousemove', onMouseMove ,  false);
+	// マウスアップ時の処理
+    canvas.addEventListener('mouseup', onDragEnd,  false);
+	//マウスホイール
+	canvas.addEventListener("wheel", onWheel,  false );
+	// マウスダブルクリック時の処理
+    canvas.addEventListener('dblclick', onDblClick ,  false);
+
+//タッチパネル
+	canvas.addEventListener('touchstart',  onTouchstart,  false);
+	canvas.addEventListener('touchend',	onDragEnd,	false);
+	canvas.addEventListener('touchmove',  onTouchMove,  false);
+
+    
+	
+	// マウスクリック時の処理
+	function onDragStart(e) {
         const mouseX = (e.clientX - canvasOffsetX  - canvas.getBoundingClientRect().left )/drawScale;
         const mouseY = (e.clientY - canvasOffsetY - canvas.getBoundingClientRect().top)/drawScale;
 		console.log( "X="+ e.clientX + "Y="+ e.clientY);
@@ -316,20 +354,114 @@ let scale = 1;
                 dfx = selectedRail.x - mouseX;
                 dfy = selectedRail.y - mouseY;
 	    }
+	}
+	
+//タッチパネル	スタート
+	function onTouchstart(ev) {
+		const e = ev.changedTouches[0];
+		const rect = canvas.getBoundingClientRect();
+		dfx= 0; dfy=0;
+		
+		if (ev.touches.length <= 1) {
+			preMouseX = (e.clientX - canvasOffsetX - rect.left);
+			preMouseY = (e.clientY - canvasOffsetY - rect.top );
+        const mouseX = preMouseX/drawScale;
+        const mouseY = preMouseY/drawScale;
+			selectedRail = rails.find(rail =>	isPointOnRail(mouseX, mouseY, rail.x , rail.y,rail.angle, rail.type) );
+			if(selectedRail){
+                dfx = selectedRail.x - mouseX;
+                dfy = selectedRail.y - mouseY;
+			}
+			if(!selectedRail){isDraggingCanvas = true;}
+     // $.throttle(500,canvas_touched);
+
+    // 指2本の2本の指のＸ座標の差とＹ座標の差を加えた値を記録
+		} else if (ev.touches.length >= 2) {
+			var p1 = ev.touches[0];
+			var p2 = ev.touches[1];
+			prePinchDist = Math.sqrt((p1.pageX - p2.pageX)*(p1.pageX - p2.pageX) +(p1.pageY - p2.pageY)*(p1.pageY - p2.pageY));
+			preScale = drawScale;
+		}
+
+	}
+
+	function onMouseStart(e) {//タッチの挙動をマウスにさせるテスト用
+		const rect = canvas.getBoundingClientRect();
+			preMouseX = (e.clientX - canvasOffsetX - rect.left);
+			preMouseY = (e.clientY - canvasOffsetY - rect.top );
+        const mouseX = preMouseX/drawScale;
+        const mouseY = preMouseY/drawScale;
+			selectedRail = rails.find(rail =>	isPointOnRail(mouseX, mouseY, rail.x , rail.y,rail.angle, rail.type) );
+			if(selectedRail){
+                dfx = selectedRail.x - mouseX;
+                dfy = selectedRail.y - mouseY;
+			}
+			if(!selectedRail){isDraggingCanvas = true;}
+	}
+
+  function onMouseMove(e) {
+		var rect = canvas.getBoundingClientRect();
+		var x = e.clientX - canvasOffsetX - rect.left;
+		var y = e.clientY - canvasOffsetY - rect.top;
+
+      // 指1本の移動距離に応じて画像の左上の座標を算出
+ 		const newX = x - preMouseX;
+		const newY = y - preMouseY;
 
 
-			//console.log(selectedRail.id);
-    });
+        if (selectedRail) {
+                selectedRail.x += newX/drawScale;
+                selectedRail.y += newY/drawScale;
+				
+				
+				preMouseX = x;
+				preMouseY = y;
 
-        // マウス移動時の処理
-    canvas.addEventListener('mousemove', (e) => {
+        }
+  
+
+		if (isDraggingCanvas) {
+        // キャンバス全体を移動
+			ctx.translate(newX,newY);
+			canvasOffsetX += newX;
+			canvasOffsetY += newY;
+		}
+
+
+
+  		draw();
+
+    }
+
+
+
+
+
+	
+	
+	// マウスダブルクリック時の処理
+	function onDblClick(e){
+        const mouseX = e.clientX - canvas.getBoundingClientRect().left;
+        const mouseY = e.clientY - canvas.getBoundingClientRect().top;
+
+        rails.forEach((rail,index) =>{console.log(rail.id);
+                if (isPointOnRail(mouseX, mouseY,rail.x,rail.y,rail.angle,rail.type)) {
+                    rails.splice(index, 1); // 長方形を配列から取り除く
+					draw();
+                }
+		});
+
+    }
+
+
+    // マウス移動時の処理
+	function onDrag(e) {
            if (selectedRail) {
                 selectedRail.x += e.movementX/drawScale;
                 selectedRail.y += e.movementY/drawScale;
                draw();
             }
   
-
 
 		if (isDraggingCanvas) {
 			const newX = e.movementX;
@@ -343,50 +475,41 @@ let scale = 1;
 		}
 
 		
-    });
-
-        // マウスアップ時の処理
-    canvas.addEventListener('mouseup', () => {
-       
-		
+    }
+	
+    // マウスアップ時の処理
+	function onDragEnd(){
 				if(selectedRail){
 					const selectedJoint = joints.find(joint => isPointClose(selectedRail.x,selectedRail.y,selectedRail.id,joint.x,joint.y,joint.id,CONECT_LIMIT_D))
+
 					if(selectedJoint){//console.log(selectedJoint);console.log(selectedRail.id);
 						selectedRail.x = selectedJoint.x;
 						selectedRail.y = selectedJoint.y;
 						selectedRail.angle = selectedJoint.angle;//draw();
 					}
 						
-//				}
-//		       if (selectedRail) {
 					CalcRailEnd(selectedRail.x,selectedRail.y,selectedRail.angle,selectedRail.type);
-				
-				
 					renewJointCoord(selectedRail.id,selectedRail.x,selectedRail.y,selectedRail.angle);
 					//console.log(joints);
 					draw();
 				}
  		
 		//選択したフラグの解除
-//		selectedRectangle = null;
-//	    selectedCurve = null;
 	    selectedRail = null;
-	
 		selectedJoint = null;
+
+//alert("ofset="+canvasOffsetX + " pre="+ preMouseX);
+
+
 	    dfx = 0;
 	    dfy = 0;
 
 		isDraggingCanvas = null;
 
-//ここに、レール端点が近かったら自動で移動させるプロセスを追加
-
-
-
-	});
-
-
+	}
+    
 //マウスホイール
-	canvas.addEventListener("wheel", (e) => {
+	function onWheel(e){
    		 const scaleFactor = e.deltaY > 0 ? 0.1 : -0.1;
 		 console.log(scaleFactor);
  		 drawScale += scaleFactor;
@@ -398,25 +521,67 @@ let scale = 1;
     // キャンバス全体を拡大縮小
  	//	   ctx.scale(scale,scale);
 		draw();
-	});
+	}
 
 
 
+//タッチパネル関連
+  function onTouchMove(ev) {
+		ev.preventDefault();     // デフォルトイベントをキャンセル
+		var e = ev.changedTouches[0];
 
-	// マウスダブルクリック時の処理
+		var rect = canvas.getBoundingClientRect();
+		var x = e.clientX - canvasOffsetX - rect.left;
+		var y = e.clientY - canvasOffsetY - rect.top;
 
-    canvas.addEventListener('dblclick', (e) => {
-        const mouseX = e.clientX - canvas.getBoundingClientRect().left;
-        const mouseY = e.clientY - canvas.getBoundingClientRect().top;
+		var p1 = ev.touches[0];
+      // 指1本の移動距離に応じて画像の左上の座標を算出
+      if (ev.touches.length <= 1) {
 
-        rails.forEach((rail,index) =>{console.log(rail.id);
-                if (isPointOnRail(mouseX, mouseY,rail.x,rail.y,rail.angle,rail.type)) {
-                    rails.splice(index, 1); // 長方形を配列から取り除く
-					draw();
-                }
-		});
+			const newX = x - preMouseX;
+			const newY = y - preMouseY;
 
-    });
+
+        if (selectedRail) {
+                selectedRail.x += newX/drawScale;
+                selectedRail.y += newY/drawScale;
+				
+				
+				preMouseX = x;
+				preMouseY = y;
+
+        }
+  
+
+		if (isDraggingCanvas) {
+        // キャンバス全体を移動
+			ctx.translate(newX,newY);
+			canvasOffsetX += newX;
+			canvasOffsetY += newY;
+		}
+
+
+
+  		draw();
+
+      // 指2本の指の間の距離に応じて拡大・縮小率を算出
+    } else if(ev.touches.length <= 2) {
+			
+			const p1 = ev.touches[0];
+			const p2 = ev.touches[1];
+			const dist = Math.sqrt((p1.pageX - p2.pageX)*(p1.pageX - p2.pageX) + (p1.pageY - p2.pageY)*(p1.pageY - p2.pageY));
+
+			drawScale = preScale * dist/prePinchDist;
+
+  draw_interval();          //
+			//draw();
+
+      }
+
+//		e.preventDefault();
+	}
+
+	
 
 //レールが移動したときに、ジョイントの座標を更新する関数
 	function renewJointCoord(Rail_id,x1,y1,angle1){
