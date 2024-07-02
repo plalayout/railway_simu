@@ -8,29 +8,46 @@
         canvas {
             border: 1px solid #000;
         }
+		button{ height: 50px;
+		}
     </style>
 </head>
 <body>
-<button onclick="scaleReset();draw();">reset</button>
+    <canvas id="railCanvas" width="750" height="750"></canvas>
+<br>
+	<button onclick="scaleReset();draw();">reset</button>
     <button onclick="addRail('S');draw();">直線</button>
     <button onclick="addRail('R');draw();">右曲線</button>
     <button onclick="addRail('L');draw();">左曲線</button>
 
-<br>
-    <canvas id="railCanvas" width="750" height="750"></canvas>
+<br>  
+	<button onclick="save()">保存</button>
+    <button onclick="load()">読み込み</button>保存スロット
+    <select id="dataSelect">
+        <option value="ringo">りんご</option>
+        <option value="mikan">みかん</option>
+        <option value="budou">ぶどう</option>
+        <option value="banana">バナナ</option>
+        <option value="suika">すいか</option>
+    </select>
+    <p id="output"></p>
+
+
+
     <script>
         const canvas = document.getElementById('railCanvas');
         const ctx = canvas.getContext('2d');
- //      const rectangles = []; // 長方形の配列
- //       const curves = []; // 曲線の配列
-        const rails = []; // レールの配列
-		const joints = []; //ジョイント部の配列
+        let rails = []; // レールの配列
+		let joints = []; //ジョイント部の配列
+
+	let CANVASWIDTH  = 750;
+	let CANVASHEIGHT = 750;
 //画面ドラッグ関連
-let isDraggingCanvas = false;
-let canvasOffsetX = 375;
-let canvasOffsetY = 375;
-let drawScale = 1;
-let scale = 1;
+	let isDraggingCanvas = false;
+	let canvasOffsetX = CANVASWIDTH /2;
+	let canvasOffsetY = CANVASHEIGHT/2;
+	let drawScale = 1;
+	let scale = 1;
 
 //タッチ関連
 	let preMouseX;
@@ -38,28 +55,7 @@ let scale = 1;
 	let prePinchDist;//タッチ時の最初のピンチ幅
 	let preScale;//タッチ開始時の縮尺
 
-   let setTOdrawID = null;
-
-
-	function scaleReset(){
-		scale = 1;drawScale=1.0;
-		canvasOffsetX = 375;
-		canvasOffsetY = 375;
-
-		ctx.restore();ctx.save();
-		ctx.setTransform(1,0,0,1,0,0);
-	}
-
-//キャンバスを一回初期化して倍率とオフセットを設定する。
-	function canvasSetScale(){
-		ctx.restore();ctx.save();
-		ctx.setTransform(1,0,0,1,0,0);
-		ctx.translate(canvasOffsetX,canvasOffsetY);
-		ctx.scale(drawScale, drawScale);	
-	}
-
-
-
+	let setTOdrawID = null;
 //レールの寸法
 	const BASE_LENGTH = 80;
 	const BASE_WIDTH = 14;
@@ -86,6 +82,49 @@ let scale = 1;
     let selectedRail = null; // 選択中のレール
 	let closestJoitn = null; // 最も近いジョイント
 	const CONECT_LIMIT_D = 8.0; //自動接続させる距離
+
+//データの保存とロード
+	function save() {
+		const selectedData = document.getElementById("dataSelect").value;
+		const json = JSON.stringify(rails);
+		localStorage.setItem(selectedData, json);
+		document.getElementById("output").textContent = "データを保存しました";
+	}
+
+	function load() {
+		const selectedData = document.getElementById("dataSelect").value;
+		const storedJson = localStorage.getItem(selectedData);console.log(selectedData + " loaded");
+		if(storedJson == null){rails = [];
+		} else{rails = JSON.parse(storedJson);}
+		renewAllJointCoord();
+		num_rail = rails.length;
+		draw();
+		document.getElementById("output").textContent = "データを呼び出しました";
+	}
+ 
+
+
+
+
+	function scaleReset(){
+		scale = 1;drawScale=1.0;
+		canvasOffsetX = CANVASWIDTH /2;
+		canvasOffsetY = CANVASHEIGHT/2;
+
+		ctx.restore();ctx.save();
+		ctx.setTransform(1,0,0,1,0,0);
+	}
+
+//キャンバスを一回初期化して倍率とオフセットを設定する。
+	function canvasSetScale(){
+		ctx.restore();ctx.save();
+		ctx.setTransform(1,0,0,1,0,0);
+		ctx.translate(canvasOffsetX,canvasOffsetY);
+		ctx.scale(drawScale, drawScale);	
+	}
+
+
+
 
 　
 
@@ -117,7 +156,7 @@ let scale = 1;
         // 直線を追加
     function addRectangle(x, y,angle) {
 		const rail_id = num_rail++;
-		const opp_angle = angle -180;
+		const opp_angle = addDeg(angle, 180);
 	    const rail = {x,y,angle,type:'S',id:rail_id };
 		const joint1 = {x,y,angle:opp_angle,id:rail_id,j_id:0};
 	    rails.push(rail);
@@ -129,7 +168,7 @@ let scale = 1;
         // 曲線を追加
     function addCurve(x, y,angle,type) {
  		const rail_id = num_rail++;
-		const opp_angle = angle -180;
+		const opp_angle = addDeg(angle, 180);
 	    const rail = {x,y,angle,type,id:rail_id };
 		const joint1 = {x,y,angle:opp_angle,id:rail_id,j_id:0};
 	    rails.push(rail);
@@ -201,7 +240,7 @@ let scale = 1;
 				drawJoint(x,y,angle);
 				drawJoint(x +sinalpha,  y - cosalpha, angle,1);
                 ctx.fillStyle = 'white';
-                ctx.fillText(id.toString(), x+sinalpha*0.5-5 , y - cosalpha*0.5);
+                ctx.fillText(id.toString(), x+sinalpha*0.5-5 , y - cosalpha*0.5+3);
 	}
 
 	//直線レールの終点を計算
@@ -221,9 +260,9 @@ let scale = 1;
 		
 
 		if(type == 'R'){ 
-			var startangle = Math.PI+ angle * Math.PI/180;
-			var endangle   = Math.PI*0.25+ startangle;	
-
+			const startangle = Math.PI+ angle * Math.PI/180;
+			const endangle   = Math.PI*0.25 + startangle;	
+			const midangle   = Math.PI*0.125+ startangle;
 				for (var i = 0; i < 4; i++) {
                 ctx.strokeStyle = colorArray[i];
 				ctx.lineWidth = lineWidthArray[i];
@@ -231,15 +270,21 @@ let scale = 1;
                	ctx.arc(x + cosalpha ,y + sinalpha , BASE_LENGTH, startangle, endangle);
 				ctx.stroke();
 				}
-			var x2 = x + cosalpha + BASE_LENGTH * ratio * Math.cos(endangle);
-			var y2 = y + sinalpha + BASE_LENGTH * ratio * Math.sin(endangle);
+			const x2 = x + cosalpha + BASE_LENGTH * ratio * Math.cos(endangle);
+			const y2 = y + sinalpha + BASE_LENGTH * ratio * Math.sin(endangle);
 			drawJoint(x,y,angle);
 			drawJoint(x2,y2,angle+45,1);
 
+			const x3 = x + cosalpha + BASE_LENGTH * ratio * Math.cos(midangle);
+			const y3 = y + sinalpha + BASE_LENGTH * ratio * Math.sin(midangle);
+                ctx.fillStyle = 'white';
+                ctx.fillText(id.toString(), x3-5 , y3+3);
+
 			}
 		if(type == 'L'){
-				startangle = angle * Math.PI/180;
-				endangle   = startangle - Math.PI*0.25;	
+			const startangle = angle * Math.PI/180;
+			const endangle   = startangle - Math.PI*0.25;	
+			const midangle   = startangle - Math.PI*0.125;
 				for (var i = 0; i < 4; i++) {
                 ctx.strokeStyle = colorArray[i];
 				ctx.lineWidth = lineWidthArray[i];
@@ -247,12 +292,16 @@ let scale = 1;
               	ctx.arc(x - cosalpha ,y - sinalpha , BASE_LENGTH, startangle, endangle,1);
 				ctx.stroke();
 				}
-			x2 = x - cosalpha + BASE_LENGTH * ratio * Math.cos(endangle);
-			y2 = y - sinalpha + BASE_LENGTH * ratio * Math.sin(endangle);
+			const x2 = x - cosalpha + BASE_LENGTH * ratio * Math.cos(endangle);
+			const y2 = y - sinalpha + BASE_LENGTH * ratio * Math.sin(endangle);
 			drawJoint(x,y,angle);
 			drawJoint(x2,y2,angle-45,1);
-			
-			
+
+			const x3 = x - cosalpha + BASE_LENGTH * ratio * Math.cos(midangle);
+			const y3 = y - sinalpha + BASE_LENGTH * ratio * Math.sin(midangle);
+	            ctx.fillStyle = 'white';
+                ctx.fillText(id.toString(), x3-5 , y3+3);
+		
 			}
                 //ctx.fillText(id.toString(), x + 5,y - 40);
 
@@ -267,14 +316,14 @@ let scale = 1;
 			var endangle   = Math.PI*0.25+ startangle;	
 			endX = x + cosalpha + BASE_LENGTH * ratio * Math.cos(endangle);
 			endY = y + sinalpha + BASE_LENGTH * ratio * Math.sin(endangle);
-			endAngleDeg = angle + 45;
+			endAngleDeg = addDeg(angle, 45);
 			}
 		if(type == 'L'){
 				startangle = angle * Math.PI/180;
 				endangle   = startangle - Math.PI*0.25;	
 			endX = x - cosalpha + BASE_LENGTH * ratio * Math.cos(endangle);
 			endY = y - sinalpha + BASE_LENGTH * ratio * Math.sin(endangle);
-			endAngleDeg = angle - 45;
+			endAngleDeg = addDeg(angle, - 45);
 			}
 		
 	}
@@ -301,7 +350,7 @@ let scale = 1;
 		
 	//ジョイント配列の確認
 	//showAllJoints();
-    drawRect(-50,-50,100,100);
+    drawRect(-166,-333,333,667);
     }
 
 
@@ -510,11 +559,11 @@ let scale = 1;
     
 //マウスホイール
 	function onWheel(e){
-   		 const scaleFactor = e.deltaY > 0 ? 0.1 : -0.1;
+   		 const scaleFactor = e.deltaY > 0 ? -0.1 : 0.1;
 		 console.log(scaleFactor);
  		 drawScale += scaleFactor;
-		 canvasOffsetX -= scaleFactor * canvasOffsetX;
-		 canvasOffsetY -= scaleFactor * canvasOffsetY*drawScale;
+		 //canvasOffsetX -= scaleFactor * canvasOffsetX;
+		 //canvasOffsetY -= scaleFactor * canvasOffsetY*drawScale;
 		 
 		 //scale += scaleFactor;
     	 //drawScale *= scale;
@@ -589,14 +638,48 @@ let scale = 1;
 	//	console.log(targetJoint);
 		targetJoint[0].x = x1;
 		targetJoint[0].y = y1;
-		targetJoint[0].angle = angle1-180;
+		targetJoint[0].angle = addDeg(angle1,-180);
 		
 		targetJoint[1].x = endX;
 		targetJoint[1].y = endY;
 		targetJoint[1].angle = endAngleDeg;
 	}
 
+//ジョイントの座標をすべて更新する関数
+	function renewAllJointCoord(){
+		joints = [];
+	    rails.forEach((rail) =>{console.log(rail.id);
+		rail.angle = rail.angle % 360;
+		let joint2 = [];
+		const opp_angle = addDeg(rail.angle, -180);
+		const joint1 = {x:rail.x,y:rail.y,angle:opp_angle,id:rail.id,j_id:0};
+		joints.push(joint1);
+		switch(rail.type){
+		case 'S':
+// if rail.type S
+			CalcStraightEnd(rail.x,rail.y,rail.angle,1.0);
+			joint2 = {x:endX,y:endY,angle:rail.angle,id:rail.id,j_id:1};
+			break;
+		case 'R': case 'L':
+// if rail.type RL
+			CalcCurveEnd(rail.x,rail.y,rail.angle,rail.type,1.0);	     
+			joint2 = {x:endX,y:endY,angle:endAngleDeg,id:rail.id,j_id:1};
+		default:	
+		}
 
+		joints.push(joint2);
+
+		});
+	
+	console.log(joints);
+	console.log(rails);
+
+	}
+
+//
+	function addDeg(a, b){
+	return (a + b +360) % 360;
+	}
 
 //点の距離がリミット以内かつ同じIDでないかを探す関数
 	function isPointClose(x1,y1,id1,x2,y2,id2,dlim){
