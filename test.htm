@@ -13,12 +13,17 @@
     </style>
 </head>
 <body>
+	<button onclick="scaleReset();draw();">reset</button>
+    <button onclick="addRail('L');draw();">左曲線</button>
+    <button onclick="addRail('S');draw();">直線</button>
+    <button onclick="addRail('R');draw();">右曲線</button>
+<br>  
     <canvas id="railCanvas" width="750" height="750"></canvas>
 <br>
 	<button onclick="scaleReset();draw();">reset</button>
-    <button onclick="addRail('S');draw();">直線</button>
+     <button onclick="addRail('L');draw();">左曲線</button>
+   <button onclick="addRail('S');draw();">直線</button>
     <button onclick="addRail('R');draw();">右曲線</button>
-    <button onclick="addRail('L');draw();">左曲線</button>
 
 <br>  
 	<button onclick="save()">保存</button>
@@ -351,6 +356,7 @@
 	//ジョイント配列の確認
 	//showAllJoints();
     drawRect(-166,-333,333,667);
+	drawArrowset(endX,endY,endAngleDeg);
     }
 
 
@@ -384,7 +390,7 @@
 
     
 	
-	// マウスクリック時の処理
+	// マウスクリック時の処理(未使用）
 	function onDragStart(e) {
         const mouseX = (e.clientX - canvasOffsetX  - canvas.getBoundingClientRect().left )/drawScale;
         const mouseY = (e.clientY - canvasOffsetY - canvas.getBoundingClientRect().top)/drawScale;
@@ -414,8 +420,8 @@
 		if (ev.touches.length <= 1) {
 			preMouseX = (e.clientX - canvasOffsetX - rect.left);
 			preMouseY = (e.clientY - canvasOffsetY - rect.top );
-        const mouseX = preMouseX/drawScale;
-        const mouseY = preMouseY/drawScale;
+			const mouseX = preMouseX/drawScale;
+			const mouseY = preMouseY/drawScale;
 			selectedRail = rails.find(rail =>	isPointOnRail(mouseX, mouseY, rail.x , rail.y,rail.angle, rail.type) );
 			if(selectedRail){
                 dfx = selectedRail.x - mouseX;
@@ -423,6 +429,7 @@
 			}
 			if(!selectedRail){isDraggingCanvas = true;}
      // $.throttle(500,canvas_touched);
+			CheckArrowset(mouseX,mouseY,endX,endY,endAngleDeg);
 
     // 指2本の2本の指のＸ座標の差とＹ座標の差を加えた値を記録
 		} else if (ev.touches.length >= 2) {
@@ -446,6 +453,7 @@
                 dfy = selectedRail.y - mouseY;
 			}
 			if(!selectedRail){isDraggingCanvas = true;}
+			CheckArrowset(mouseX,mouseY,endX,endY,endAngleDeg);
 	}
 
   function onMouseMove(e) {
@@ -758,35 +766,68 @@
 
 //操作用の矢印をセットで表示させる関数
 	function drawArrowset(x,y,angle){
-		const r1 = 70;
-		const r2 = 25;
+		const r1 = 50;
+		const r2 = 40;
 		const r3 = 30;
-		const s1 = -30;
+		const s1 = 10;
 		const s2 = 15;
 		const angle_rad = angle * Math.PI/180;
 
 		const xa = x - Math.sin(angle_rad) * s1;
 		const ya = y + Math.cos(angle_rad) * s1;
-		const xb = x + r1 * Math.cos(Math.PI/3 -angle_rad); 
-		const yb = y - r1 * Math.sin(Math.PI/3 -angle_rad);
-		const xc = x - r1 * Math.cos(Math.PI/3 +angle_rad);
-		const yc = y - r1 * Math.sin(Math.PI/3 +angle_rad);
+		const xb = x + r1 * Math.cos( -angle_rad); 
+		const yb = y - r1 * Math.sin( -angle_rad);
+		const xc = x - r1 * Math.cos( +angle_rad);
+		const yc = y - r1 * Math.sin( +angle_rad);
 
 		drawArrow(xa,ya, 60+angle, 120+angle,r3,8,'orange',0);
 		drawArrow(xa,ya,-60+angle,-120+angle,r3,8,'orange',1);
 
 		drawArrow(xb,yb,-90+angle,-30+angle,r2,8,'green',0);
 		drawArrow(xc,yc, 90+angle, 30+angle,r2,8,'green',1);
-		drawStArrow(x,y,angle,30,60,8,'green')
+		drawStArrow(x,y,angle,50,5,8,'green')
 
-               	ctx.beginPath();
-                ctx.strokeStyle = 'blue';
-				ctx.lineWidth = 1;
-               	ctx.arc(x  ,y  , r1, 0, Math.PI *2 ,1);
-				ctx.stroke();
-
-
+               	//ctx.beginPath();
+                //ctx.strokeStyle = 'blue';
+				//ctx.lineWidth = 1;
+               	//ctx.arc(x  ,y  , r1, 0, Math.PI *2 ,1);
+				//ctx.stroke();
 	}
+
+//操作用の矢印のタッチをチェックする関数
+	function CheckArrowset(PointX,PointY,x,y,angle){
+		const r1 = 50;
+		const r2 = 40;
+		const r3 = 30;
+		const s1 = 10;
+		const s2 = 15;
+		const angle_rad = angle * Math.PI/180;
+
+		const xa = x - Math.sin(angle_rad) * s1;
+		const ya = y + Math.cos(angle_rad) * s1;
+		const xb = x + r1 * Math.cos( -angle_rad); 
+		const yb = y - r1 * Math.sin( -angle_rad);
+		const xc = x - r1 * Math.cos( +angle_rad);
+		const yc = y - r1 * Math.sin( +angle_rad);
+
+		//drawArrow(xa,ya, 60+angle, 120+angle,r3,8,'orange',0);
+		//drawArrow(xa,ya,-60+angle,-120+angle,r3,8,'orange',1);
+
+		//drawArrow(xb,yb,-90+angle,-30+angle,r2,8,'green',0);
+		//drawArrow(xc,yc, 90+angle, 30+angle,r2,8,'green',1);
+		//drawStArrow(x,y,angle,50,5,8,'green')
+		if(IsPointOnArrow(PointX,PointY,xa,ya, 60+angle, 120+angle,r3,8,0)){}
+		else if(IsPointOnArrow(PointX,PointY,xa,ya,-60+angle,-120+angle,r3,8,1)){}
+		else if(IsPointOnArrow(PointX,PointY,xb,yb,-90+angle,-30+angle,r2,12,0)){addRail('R');}
+		else if(IsPointOnArrow(PointX,PointY,xc,yc, 90+angle, 30+angle,r2,12,1)){addRail('L');}
+		else if(isPointInRectangle(PointX,PointY,x, y,angle, 50)){addRail('S');}
+               	//ctx.beginPath();
+                //ctx.strokeStyle = 'blue';
+				//ctx.lineWidth = 1;
+               	//ctx.arc(x  ,y  , r1, 0, Math.PI *2 ,1);
+				//ctx.stroke();
+	}
+
 
 //Jointを可視化させる
 	function showAllJoints(){
