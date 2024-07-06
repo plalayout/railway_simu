@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>プラレールレイアウトシミュレーション</title>
+    <script src="./jquery-3.7.1.min.js"></script>
+	<title>プラレールレイアウトシミュレーション</title>
     <style>
         canvas {
             border: 1px solid #000;
@@ -59,6 +60,7 @@
 	let preMouseY;
 	let prePinchDist;//タッチ時の最初のピンチ幅
 	let preScale;//タッチ開始時の縮尺
+	let touchcount = 0;
 
 	let setTOdrawID = null;
 //レールの寸法
@@ -85,7 +87,10 @@
 	let endAngleDeg; // -Y軸０　時計回り
 
     let selectedRail = null; // 選択中のレール
+	let LastselectedRail = null;	
 	let closestJoitn = null; // 最も近いジョイント
+	let showArrowSet = false;
+	let isshowAlljoint = false; 
 	const CONECT_LIMIT_D = 8.0; //自動接続させる距離
 
 //データの保存とロード
@@ -146,6 +151,8 @@
 			case 'R':case 'L':
 					addCurve(endX, endY,endAngleDeg,type);break;
 			}
+			LastselectedRail=rails[num_rail-1];console.log(LastselectedRail);
+
 	}
 		//レール端点を計算
 	function CalcRailEnd(x,y,angle,type){
@@ -356,7 +363,7 @@
 	//ジョイント配列の確認
 	//showAllJoints();
     drawRect(-166,-333,333,667);
-	drawArrowset(endX,endY,endAngleDeg);
+	if(showArrowSet)drawArrowset(endX,endY,endAngleDeg);
     }
 
 
@@ -420,17 +427,7 @@
 		if (ev.touches.length <= 1) {
 			preMouseX = (e.clientX - canvasOffsetX - rect.left);
 			preMouseY = (e.clientY - canvasOffsetY - rect.top );
-			const mouseX = preMouseX/drawScale;
-			const mouseY = preMouseY/drawScale;
-			selectedRail = rails.find(rail =>	isPointOnRail(mouseX, mouseY, rail.x , rail.y,rail.angle, rail.type) );
-			if(selectedRail){
-                dfx = selectedRail.x - mouseX;
-                dfy = selectedRail.y - mouseY;
-			}
-			if(!selectedRail){isDraggingCanvas = true;}
-     // $.throttle(500,canvas_touched);
-			CheckArrowset(mouseX,mouseY,endX,endY,endAngleDeg);
-
+			onMouseprocess(preMouseX,preMouseY);
     // 指2本の2本の指のＸ座標の差とＹ座標の差を加えた値を記録
 		} else if (ev.touches.length >= 2) {
 			var p1 = ev.touches[0];
@@ -445,16 +442,24 @@
 		const rect = canvas.getBoundingClientRect();
 			preMouseX = (e.clientX - canvasOffsetX - rect.left);
 			preMouseY = (e.clientY - canvasOffsetY - rect.top );
-        const mouseX = preMouseX/drawScale;
+		onMouseprocess(preMouseX,preMouseY);
+	
+	}
+
+	function onMouseprocess(preMouseX,preMouseY){
+	    const mouseX = preMouseX/drawScale;
         const mouseY = preMouseY/drawScale;
 			selectedRail = rails.find(rail =>	isPointOnRail(mouseX, mouseY, rail.x , rail.y,rail.angle, rail.type) );
 			if(selectedRail){
                 dfx = selectedRail.x - mouseX;
                 dfy = selectedRail.y - mouseY;
+				showArrowSet = true;
 			}
 			if(!selectedRail){isDraggingCanvas = true;}
-			CheckArrowset(mouseX,mouseY,endX,endY,endAngleDeg);
+			if(showArrowSet)CheckArrowset(mouseX,mouseY,endX,endY,endAngleDeg);
 	}
+
+
 
   function onMouseMove(e) {
 		var rect = canvas.getBoundingClientRect();
@@ -498,17 +503,26 @@
 	
 	// マウスダブルクリック時の処理
 	function onDblClick(e){
-        const mouseX = e.clientX - canvas.getBoundingClientRect().left;
-        const mouseY = e.clientY - canvas.getBoundingClientRect().top;
+        const mouseX = e.clientX - canvasOffsetX - canvas.getBoundingClientRect().left;
+        const mouseY = e.clientY - canvasOffsetY - canvas.getBoundingClientRect().top;
+		dbcickprocess(mouseX,mouseY);
+    }
 
-        rails.forEach((rail,index) =>{console.log(rail.id);
+	function dbcickprocess(mouseX,mouseY){
+		console.log("dbclicked");
+        rails.forEach((rail,index) =>{//console.log(rail.id);
                 if (isPointOnRail(mouseX, mouseY,rail.x,rail.y,rail.angle,rail.type)) {
                     rails.splice(index, 1); // 長方形を配列から取り除く
-					draw();
-                }
+					joints = joints.filter(joint => joint.id != rail.id);
+				}
 		});
+		showArrowSet = false;
+		draw();
 
-    }
+
+
+	}
+
 
 
     // マウス移動時の処理
@@ -540,15 +554,18 @@
 					const selectedJoint = joints.find(joint => isPointClose(selectedRail.x,selectedRail.y,selectedRail.id,joint.x,joint.y,joint.id,CONECT_LIMIT_D))
 
 					if(selectedJoint){//console.log(selectedJoint);console.log(selectedRail.id);
-						selectedRail.x = selectedJoint.x;
-						selectedRail.y = selectedJoint.y;
-						selectedRail.angle = selectedJoint.angle;//draw();
+						
+					    if(	selectedRail.x != selectedJoint.x && selectedRail.y != selectedJoint.y){
+							selectedRail.angle = selectedJoint.angle;//draw();
+							selectedRail.x = selectedJoint.x;
+							selectedRail.y = selectedJoint.y;
+						}
 					}
 						
 					CalcRailEnd(selectedRail.x,selectedRail.y,selectedRail.angle,selectedRail.type);
 					renewJointCoord(selectedRail.id,selectedRail.x,selectedRail.y,selectedRail.angle);
 					//console.log(joints);
-					draw();
+					draw();LastselectedRail = selectedRail;
 				}
  		
 		//選択したフラグの解除
@@ -630,8 +647,8 @@
 
 			drawScale = preScale * dist/prePinchDist;
 
-  draw_interval();          //
-			//draw();
+ // draw_interval();          //
+			draw();
 
       }
 
@@ -816,21 +833,30 @@
 		//drawArrow(xb,yb,-90+angle,-30+angle,r2,8,'green',0);
 		//drawArrow(xc,yc, 90+angle, 30+angle,r2,8,'green',1);
 		//drawStArrow(x,y,angle,50,5,8,'green')
-		if(IsPointOnArrow(PointX,PointY,xa,ya, 60+angle, 120+angle,r3,8,0)){}
-		else if(IsPointOnArrow(PointX,PointY,xa,ya,-60+angle,-120+angle,r3,8,1)){}
-		else if(IsPointOnArrow(PointX,PointY,xb,yb,-90+angle,-30+angle,r2,12,0)){addRail('R');}
-		else if(IsPointOnArrow(PointX,PointY,xc,yc, 90+angle, 30+angle,r2,12,1)){addRail('L');}
-		else if(isPointInRectangle(PointX,PointY,x, y,angle, 50)){addRail('S');}
+		if(IsPointOnArrow(PointX,PointY,xa,ya, 60+angle, 120+angle,r3,8,0)){RotateRail(45);}
+		else if(IsPointOnArrow(PointX,PointY,xa,ya,-60+angle,-120+angle,r3,8,1)){RotateRail(-45);}
+		else if(IsPointOnArrow(PointX,PointY,xb,yb,-90+angle,-30+angle,r2,20,0)){addRail('R');}
+		else if(IsPointOnArrow(PointX,PointY,xc,yc, 90+angle, 30+angle,r2,20,1)){addRail('L');}
+		else if(isPointInRectangle(PointX,PointY,x, y,angle, 60)){addRail('S');}
                	//ctx.beginPath();
                 //ctx.strokeStyle = 'blue';
 				//ctx.lineWidth = 1;
                	//ctx.arc(x  ,y  , r1, 0, Math.PI *2 ,1);
 				//ctx.stroke();
 	}
+//レールの回転
+	function RotateRail(degree){
+		if(LastselectedRail){
+		LastselectedRail.angle = addDeg(LastselectedRail.angle,degree);
+		CalcRailEnd(LastselectedRail.x,LastselectedRail.y,LastselectedRail.angle,LastselectedRail.type);
+		renewJointCoord(LastselectedRail.id,LastselectedRail.x,LastselectedRail.y,LastselectedRail.angle);
+		draw();
+		}
+	}
 
 
 //Jointを可視化させる
-	function showAllJoints(){
+	function showAllJoints(){console.log("clicked");
 	    joints.forEach(joint => {
 			if(joint.j_id == 1){
 				drawStArrow(joint.x,joint.y,joint.angle,6,0,5,'red',1);
