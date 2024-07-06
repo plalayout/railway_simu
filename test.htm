@@ -435,6 +435,14 @@
 			prePinchDist = Math.sqrt((p1.pageX - p2.pageX)*(p1.pageX - p2.pageX) +(p1.pageY - p2.pageY)*(p1.pageY - p2.pageY));
 			preScale = drawScale;
 		}
+		if(!touchcount){touchcount++;
+			setTimeout(function(){touchcount=0;},400);
+		}else{
+			dbcickprocess(preMouseX,preMouseY);
+			touchcount=0;
+		}
+
+
 
 	}
 
