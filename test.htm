@@ -7,44 +7,136 @@
 	<title>プラレールレイアウトシミュレーション</title>
     <style>
         canvas {
-            border: 1px solid #000;
+            border: 1px solid #000;background-color:#fcfcfc;
         }
 		button{ height: 50px;
 		}
+		#main,#title {
+  float: none;
+	margin: 0px;
+	padding: 0px;
+}
+
+#rightmenu {
+	margin: 0px;
+	overflow: auto;
+	top: 0px;
+	left: 0px;
+}
+
+#app {
+/*	margin: 0px 0px 0px 260px;*/
+  width: 800px;
+	padding: 0px;
+	border: 3px solid;
+}
+
+#copyright {
+  text-align:right;
+  margin-right:15px;
+}
+
+H1 {
+	font-size: 200%;
+	margin: 5px 5px 5px 5px;
+	display: inline-block;
+}
+
+H2 {
+	font-size: 140%;
+	font-weight: bold;
+	margin: 5px 5px 5px 5px;
+  display: inline-block;
+}
+
+input{
+  margin: 5px 2px 2px 2px;
+}
+
+hr{
+  margin-right:20px;
+}
+
+em {
+	font-weight: bold;
+	color: #0000CC;
+	font-style: normal;
+}
+
+.explain {
+	margin-left: 10px;
+}
+
+#remainRail{
+	font-size: 150%;
+}
+
+#congrat {
+	font-size: 180%;
+	color: #FF0000;
+}
+
+#btn_nxt{
+  //visibility: hidden;
+  z-index: 3;
+}
+#dataSelect{
+  border:1px solid black;font-size: 150%;
+}
     </style>
-</head>
-<body>
-	<button onclick="scaleReset();draw();">reset</button>
-    <button onclick="addRail('L');draw();">左曲線</button>
-    <button onclick="addRail('S');draw();">直線</button>
-    <button onclick="addRail('R');draw();">右曲線</button>
-<br>  
-    <canvas id="railCanvas" width="750" height="750"></canvas>
-<br>
-	<button onclick="scaleReset();draw();">reset</button>
-     <button onclick="addRail('L');draw();">左曲線</button>
-   <button onclick="addRail('S');draw();">直線</button>
-    <button onclick="addRail('R');draw();">右曲線</button>
 
-<br>  
-	<button onclick="save()">保存</button>
-    <button onclick="load()">読み込み</button>保存スロット
-    <select id="dataSelect">
-        <option value="ringo">りんご</option>
-        <option value="mikan">みかん</option>
-        <option value="budou">ぶどう</option>
-        <option value="banana">バナナ</option>
-        <option value="suika">すいか</option>
-    </select>
-    <p id="output"></p>
-
-
-
-    <script>
-        const canvas = document.getElementById('railCanvas');
-        const ctx = canvas.getContext('2d');
+ <script type="text/javascript">
         let rails = []; // レールの配列
 		let joints = []; //ジョイント部の配列
+		let canvas;
+		let ctx;
+		let iFullsizeCanvas = false;
+		let iIchjou = true;
+
+		
+	function init(){
+        canvas = document.getElementById('railCanvas');
+        ctx = canvas.getContext('2d');console.log(ctx);
+		
+		CANVASWIDTH  = canvas.width;
+		CANVASHEIGHT = canvas.height;
+//画面ドラッグ関連
+		canvasOffsetX = CANVASWIDTH /2;
+		canvasOffsetY = CANVASHEIGHT/2;
+
+		
+		
+		//マウスイベントの呼び出し
+    // マウスクリック時の処理
+    //canvas.addEventListener('mousedown', onDragStart);
+	//ドラッグ時
+    //canvas.addEventListener('mousemove', onDrag ,  false);
+    // マウスクリック時の処理
+    canvas.addEventListener('mousedown', onMouseStart);
+	//ドラッグ時
+    canvas.addEventListener('mousemove', onMouseMove ,  false);
+	// マウスアップ時の処理
+    canvas.addEventListener('mouseup', onDragEnd,  false);
+	//マウスホイール
+	canvas.addEventListener("wheel", onWheel,  false );
+	// マウスダブルクリック時の処理
+    canvas.addEventListener('dblclick', onDblClick ,  false);
+
+//タッチパネル
+	canvas.addEventListener('touchstart',  onTouchstart,  false);
+	canvas.addEventListener('touchend',	onDragEnd,	false);
+	canvas.addEventListener('touchmove',  onTouchMove,  false);
+
+		initCourse();
+        draw();
+
+		resizeEvent();
+		$(window).bind("resize",resizeEvent);
+
+	
+	}
+
+
 
 	let CANVASWIDTH  = 750;
 	let CANVASHEIGHT = 750;
@@ -112,7 +204,14 @@
 		document.getElementById("output").textContent = "データを呼び出しました";
 	}
  
-
+	function clearData() {
+		rails = []; // レールの配列
+		joints = []; //ジョイント部の配列
+		endX = 0;
+		endY = 0;
+		endAngleDeg = 0;
+		draw();
+	}
 
 
 
@@ -374,26 +473,6 @@
   }
 
 
-//マウスイベントの呼び出し
-    // マウスクリック時の処理
-    //canvas.addEventListener('mousedown', onDragStart);
-	//ドラッグ時
-    //canvas.addEventListener('mousemove', onDrag ,  false);
-    // マウスクリック時の処理
-    canvas.addEventListener('mousedown', onMouseStart);
-	//ドラッグ時
-    canvas.addEventListener('mousemove', onMouseMove ,  false);
-	// マウスアップ時の処理
-    canvas.addEventListener('mouseup', onDragEnd,  false);
-	//マウスホイール
-	canvas.addEventListener("wheel", onWheel,  false );
-	// マウスダブルクリック時の処理
-    canvas.addEventListener('dblclick', onDblClick ,  false);
-
-//タッチパネル
-	canvas.addEventListener('touchstart',  onTouchstart,  false);
-	canvas.addEventListener('touchend',	onDragEnd,	false);
-	canvas.addEventListener('touchmove',  onTouchMove,  false);
 
     
 	
@@ -436,7 +515,7 @@
 			preScale = drawScale;
 		}
 		if(!touchcount){touchcount++;
-			setTimeout(function(){touchcount=0;},400);
+			setTimeout(function(){touchcount=0;},600);
 		}else{
 			dbcickprocess(preMouseX,preMouseY);
 			touchcount=0;
@@ -980,10 +1059,222 @@
 		return r2 > (radius - width/2)**2 && r2 < (radius + width/2)**2 && IsInAngle;
 	}
 
-		initCourse();
-        draw();
 		
+	function resizeEvent() {
+		let ww = window.innerWidth;
+		let wh = window.innerHeight;
+		//console.log("ww="+ww + ":wh=" +wh);
+　　//縦長画面の場合（デフォルト）
+    let leftWidth = ww;
+    let mainWidth = ww;
+
+    var btn_height = wh / 16;
+    var btn_margin = btn_height * 5.5;
+    var btn_width = leftWidth / 4.5;
+
+   if(ww > wh　*　1.2 ){//横長画面の場合
+   leftWidth = ww * 1/3;
+   mainWidth = ww - leftWidth-50;
+   //if(!iFullsizeCanvas){btn_height = btn_height * 2;
+   //}
+   btn_margin = btn_height *1.5;
+   btn_width = leftWidth / 3.6;
+   $("#title").css('float', 'right');
+   $("body").css('line-height', '180%');
+   $("H1,H2").css('display', 'block');
+   $("#main").css('float', 'left');
+   $('.basic_btn').css('margin', '10px 1px 1px 1px');
+   $('.basic_btn2').css('margin', '10px 1px 1px 1px');
+
+  }else{
+    $("#title").css('float', 'none');
+    $("#main").css('float', 'none');
+
+  }
+
+   if(iFullsizeCanvas){
+     btn_margin = btn_height *1.5;
+     btn_width = ww / 10;
+//     document.webkitRequestFullscreen();
+   }else{
+//     document.webkitCancelFullScreen();
+   }
+
+
+
+
+    $('.basic_btn').css('width', btn_width);
+		$('.basic_btn').css('height', btn_height);
+		$('.basic_btn').css('font-size', (btn_height * 0.5));
+		$('.basic_btn2').css('width', btn_width*1.2);
+		$('.basic_btn2,.basic_btn3').css('height', btn_height);
+		$('.basic_btn2,.basic_btn3').css('font-size', (btn_height * 0.5));
+
+		btn_width =( mainWidth　-　20) / 8;
+		$('.scn_btn').css('width', btn_width);
+		$('.scn_btn').css('height', btn_height);
+		$('.scn_btn').css('font-size', (btn_height * 0.5));
+    $("#main").css("width", mainWidth);
+    $("#title").css("width", leftWidth);
+    $("#rightmenu").css("width", leftWidth);
+
+    if(iFullsizeCanvas){
+      $("#railCanvas").attr("width", ww);
+	  $("#railCanvas").attr("height", wh);
+      $("#railCanvas").css("position", "fixed");
+      $("#railCanvas").css("top", 0);
+      $("#railCanvas").css("left", 0);
+
+      $("#btn_R,#btn_S,#btn_L,#close_Full_scr,#btn_b,#btn_rst,#btn_save,#btn_load,#dataSelect").css("position", 'fixed' );
+      $("#btn_fr,#btn_nxt2").css("position", 'fixed' );
+      $('.basic_btn,.basic_btn2,.basic_btn3').css('height', "");
+      $('.basic_btn,.basic_btn2,.basic_btn3').css('width', "");
+      var fulsc_font_size = Math.min(wh/20,ww/21);
+      $('.basic_btn,.basic_btn2,.basic_btn3').css('font-size', fulsc_font_size);
+
+
+      $("#btn_R,#btn_S,#btn_L").css("visibility", 'visible' );
+      $("#btn_R,#btn_S,#btn_L,#btn_b,#btn_rst").css("top", wh-btn_height*3.5);
+      $("#btn_save,#btn_load,#dataSelect").css("top", wh-btn_height*1.5);
+
+
+
+      var btngap = ww/26;
+
+      $("#btn_L").css("left", btngap/2);
+      $("#btn_S").css("left", btngap/2 + btn_width + btngap);
+      $("#btn_R").css("left", btngap/2 + btn_width*2 + btngap*2);
+
+      $("#btn_save").css("left", btngap/2);
+      $("#btn_load").css("left", btngap/2 + btn_width + btngap);
+      $("#dataSelect").css("left", btngap/2 + btn_width*2 + btngap*2);
+
+
+      $("#btn_fr").css("left", btngap/2);
+      $("#btn_nxt2").css("left", btngap/2 + btn_width + btngap);
+
+
+      $("#btn_rst").css("right", btngap/4);
+      $("#btn_b").css("left", btngap/2 + btn_width*3 + btngap*3);
+
+
+      $("#close_Full_scr").css("top", 10);
+      $("#close_Full_scr").css("right", 10);
+      $("#close_Full_scr").attr("value", "X");
+
+
+      $("#NO_Q,#remain_mss").css("position", "fixed");
+      $("#NO_Q").css("top", 10);
+      $("#remain_mss").css("top", wh-btn_height*1.5);
+      $("#NO_Q").css("left", 10);
+      $("#remain_mss").css("left", btngap/2);
+      $("#remain_mss,#NO_Q").css('font-size', (btn_height * 0.8));
+
+
+
+    }else{//全面じゃない場合
+      $("#railCanvas").attr("width", mainWidth-30);
+  		$("#railCanvas").attr("height", wh - btn_margin - 20 );
+
+      $("#btn_nxt").css("position", 'absolute' );
+      $("#railCanvas,#btn_R,#btn_S,#btn_L,#close_Full_scr,#btn_b,#btn_rst,#btn_save,#btn_load,#dataSelect").css("position", 'static' );
+      $("#btn_fr,#btn_nxt2").css("position", 'static' );
+      $("#NO_Q,#remain_mss").css("position", "static");
+      $("#btn_nxt").css("top", (wh)/2 + btn_height );
+      $("#btn_nxt").css("left", mainWidth/2 -btn_width);
+      $("#btn_nxt").css("visibility", 'hidden' );
+      $("#btn_R,#btn_S,#btn_L").css("top", -btn_height*1.4);
+      $("#close_Full_scr").attr("value", "□");
+      $("#remain_mss,#NO_Q").css('font-size',"100%");
+
+
+    }
+
+
+
+    $('body').css('font-size', (btn_height * 0.3));
+
+		draw();
+	}
+
+  function closeFullscr(){
+    if(iFullsizeCanvas){
+      iFullsizeCanvas = false;
+    }else{
+      iFullsizeCanvas = true;
+    }
+    resizeEvent();
+  }
+
+  function show_nxt_buttan(){
+    $("#btn_nxt").css("visibility", 'visible' );
+  }
+  function hide_nxt_buttan(){
+    $("#btn_nxt").css("visibility", 'hidden' );
+
+  }
 		
     </script>
+	
+	
+	
+</head>
+<body onload="init();">
+  <div id="title">
+  <H1>レール配置</h1>
+  
+  </div>
+
+  <div id="main">
+    <canvas id="railCanvas" width="750" height="750"></canvas>
+   </div>
+ 
+
+
+
+<br>  
+
+  <div id="rightmenu">
+    <h2>レールの追加:</h2>
+    <input id="btn_L" type="button" value="L" onclick="addRail('L');draw();" class="basic_btn" style="center" />
+    <input id="btn_S" type="button" value="S" onclick="addRail('S');draw();" class="basic_btn" style="center" />
+    <input id="btn_R" type="button" value="R" onclick="addRail('R');draw();" class="basic_btn" style="center" />
+ <br/><br/>
+
+    <input id="btn_b" type="button" value="戻す" onclick="scaleReset();draw();" class="basic_btn2" />
+    <input id="btn_rst" type="button" value="リセット" onclick="clearData();" class="basic_btn3" />
+ <hr>
+
+   <div id="scn_btn_set">
+    <input id="btn_save" type="button" value="保存" onclick="save()" class="scn_btn"  style="" />
+	<input id="btn_load" type="button" value="読込" onclick="load()" class="scn_btn"  style="" />
+	<label for="dataSelect">保存スロット</label>
+    <select id="dataSelect"　class="scn_btn" name="memoryslot">
+        <option value="ringo">りんご</option>
+        <option value="mikan">みかん</option>
+        <option value="budou">ぶどう</option>
+        <option value="banana">バナナ</option>
+        <option value="suika">すいか</option>
+    </select>
+    <p id="output"></p>
+
+
+<!--    <h2><smapn id="scal"></span></h2> -->
+   </div>	
+
+
+   <h2 id="remain_mss"><span id="message"></span></h2>
+
+   <hr>
+<input id="close_Full_scr" type="button" value="□" onclick="closeFullscr();" class="basic_btn"/>:全画面化
+
+<a href="https://x.com/intent/post?hashtags=jmitani_railway_puzzle&ref_src=twsrc%5Etfw&text=%E3%83%AC%E3%83%BC%E3%83%AB%E3%83%91%E3%82%BA%E3%83%AB&tw_p=tweetbutton&url=http%3A%2F%2Fplalayout.html.xdomain.jp%2Frail-simu%2Ftest.htm" id="rslt_tweet" class="twitter-share-button" >ツイート</a></script>
+ <div id='copyright'>
+
+ </div>
+
+</div>
+
+
 </body>
 </html>
