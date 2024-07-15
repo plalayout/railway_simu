@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="./jquery-3.7.1.min.js"></script>
-	<title>プラレールレイアウトシミュレーション</title>
+	<title>レールレイアウトシミュレーション</title>
     <style>
         canvas {
             border: 1px solid #000;background-color:#fcfcfc;
@@ -96,7 +96,7 @@ em {
 		
 	function init(){
         canvas = document.getElementById('railCanvas');
-        ctx = canvas.getContext('2d');console.log(ctx);
+        ctx = canvas.getContext('2d');//console.log(ctx);
 		
 		CANVASWIDTH  = canvas.width;
 		CANVASHEIGHT = canvas.height;
@@ -160,8 +160,25 @@ em {
 	const BASE_WIDTH = 14;
 	const JOINT_WIDTH = 4;
 	const JOINT_LENGTH = 4;
+	
+	const DOUBLE_TRACK_DISTANCE_RATIO = 0.278;	
+	const URAIL_RADIUS_RATIO = 0.62037;	
+	const URAIL_CNCT_R_RATIO = 1.02351;	
+	
+//レールタイプ　R:右曲線L:左曲線S:直線　G:複線外側右曲線　N:複線外側左曲線
+//H:1/2レール　Q:1/4レール　D:倍直線　J:ジョイントレール（1/6)
+//"U"：Uターン（右）"V"：Uターン（左）"A"：複線幅（右）C：複線幅（左）X：Y字幅（右）"Z"：Y字幅（左）
+//レールを追加するのに必要な改修箇所　レール配列にレールを追加する関数(②が必要）、起点（ｘ、ｙ、angle）に対応して描画する関数①、終点を計算する関数②、タッチポイントに対してタッチ判定する関数③ 
+// addRail()にcaseを追加　	CalcRailEnd（）にcaseを追加　draw（）にcaseを追加　isPointOnRail（）にcaseを追加　renewAllJointCoord()にcaseを追加　
+	
+	
 	const lineWidthArray = [BASE_WIDTH, 12, 6, 4];
 	const colorArray = ["#000000", "#51b5ff", "#1970c1", "#51b5ff"];
+	const colorArray2 = ["#000000", "#4195ff", "#1970c1", "#4195ff"];//外側曲線
+	const colorArray3 = ["#19c170", "#51ffb5", "#19c170", "#51ffb5"]; // 別ルート
+	const colorArray4 = ["#f1f1f1", "#e5e5e5", "#f1f1f1", "#e5e5e5"]; // 別ルート
+	const colorArray5 = ["#000000", "#e56565", "#ffaaaa", "#e56565"]; // Uレール
+	const EmcolorArray = ["#ff0000", "#ffaacc", "#ff0000", "#ffaacc"];
 
 	var observ = null;
 
@@ -244,51 +261,116 @@ em {
 		endAngleDeg = 0;
 	}
 
+	function add_SP_Rail(IDselect){
+		const selectedtype = document.getElementById(IDselect).value;
+		addRail(selectedtype);
+		return selectedtype;
+	}
+
 		//レールを追加
 	function addRail(type){switch(type){
-			case 'S':
-					addRectangle(endX, endY,endAngleDeg);break;
 			case 'R':case 'L':
-					addCurve(endX, endY,endAngleDeg,type);break;
-			}
-			LastselectedRail=rails[num_rail-1];console.log(LastselectedRail);
+					addCurve(endX, endY,endAngleDeg,type,1.0);break;
+			case 'S':
+					addRectangle(endX, endY,endAngleDeg,type,1.0,0);break;
+			case 'H'://1/2直線
+					addRectangle(endX, endY,endAngleDeg,type,0.5,0);break;
+			case 'Q'://1/4直線
+					addRectangle(endX, endY,endAngleDeg,type,0.25,0);break;
+			case 'D'://倍直線
+					addRectangle(endX, endY,endAngleDeg,type,2.0,0);break;
+			case 'G':case 'N'://外側曲線
+					addCurve(endX, endY,endAngleDeg,type,1.0+DOUBLE_TRACK_DISTANCE_RATIO);break;
+//"U"：Uターン（右）"V"：Uターン（左）"A"：複線幅（右）C：複線幅（左）X：Y字幅（右）"Z"：Y字幅（左）
+			case 'A':
+					addRectangle(endX, endY,endAngleDeg,type,1.0,DOUBLE_TRACK_DISTANCE_RATIO);break;
+			case 'C':
+					addRectangle(endX, endY,endAngleDeg,type,1.0, -DOUBLE_TRACK_DISTANCE_RATIO);break;
+			case 'X':
+					addRectangle(endX, endY,endAngleDeg,type,1.0, 0.25);break;
+			case 'Z':
+					addRectangle(endX, endY,endAngleDeg,type,1.0, -0.25);break;
+			case 'U':case 'V':
+					addUrail(endX,endY,endAngleDeg,type);break;
+			}//console.log(num_rail);
+			LastselectedRail=rails[rails.length-1];//console.log(LastselectedRail);
 
 	}
 		//レール端点を計算
 	function CalcRailEnd(x,y,angle,type){
 		switch(type){
-			case 'S':
-					[endX,endY,endAngleDeg] = CalcStraightEnd(x,y,angle,1.0);break;
 			case 'R':case 'L':
-					[endX,endY,endAngleDeg] = CalcCurveEnd(x,y,angle,type,1.0);break;		
+					[ex,ey,eAngle] = CalcCurveEnd(x,y,angle,type,1.0);break;
+			case 'S':
+					[ex,ey,eAngle] = CalcStraightEnd(x,y,angle,1.0);break;
+			case 'H':
+					[ex,ey,eAngle] = CalcStraightEnd(x,y,angle,0.5);break;
+			case 'Q':
+					[ex,ey,eAngle] = CalcStraightEnd(x,y,angle,0.25);break;
+			case 'D':
+					[ex,ey,eAngle] = CalcStraightEnd(x,y,angle,2);break;
+			case 'G': case 'N':
+					[ex,ey,eAngle] = CalcCurveEnd(x,y,angle,type,1.0+DOUBLE_TRACK_DISTANCE_RATIO);break;
+//"U"：Uターン（右）"V"：Uターン（左）"A"：複線幅（右）C：複線幅（左）X：Y字幅（右）"Z"：Y字幅（左）
+			case 'A':
+					[ex,ey,eAngle] = drawSlideRail(x,y,angle, 1.0, DOUBLE_TRACK_DISTANCE_RATIO,0);break;
+			case 'C':
+					[ex,ey,eAngle] = drawSlideRail(x,y,angle, 1.0, -DOUBLE_TRACK_DISTANCE_RATIO,0);break;
+			case 'X':
+					[ex,ey,eAngle] = drawSlideRail(x,y,angle, 1.0, 0.25,0);break;
+			case 'Y':
+					[ex,ey,eAngle] = drawSlideRail(x,y,angle, 1.0, -0.25,0);break;
+			case 'U':case 'V':
+					[ex,ey,eAngle] = drawURCurveRail(x,y,angle,type,0);break;
+
+			default:console.log("no type");		
 		}
-		
+		return [ex,ey,eAngle];
 	}
 
         // 直線を追加
-    function addRectangle(x, y,angle) {
+    function addRectangle(x, y,angle,type,ratio,slide_ratio) {
 		const rail_id = num_rail++;
 		const opp_angle = addDeg(angle, 180);
-	    const rail = {x,y,angle,type:'S',id:rail_id };
+	    const rail = {x,y,angle,type,id:rail_id };
 		const joint1 = {x,y,angle:opp_angle,id:rail_id,j_id:0};
 	    rails.push(rail);
 		joints.push(joint1);
-		[endX,endY,endAngleDeg]=CalcStraightEnd(x,y,angle,1.0);
+//		if(slide_ratio == 0){
+		[endX,endY,endAngleDeg]=drawSlideRail(x,y,angle, ratio, slide_ratio,0);
+//		[endX,endY,endAngleDeg]=CalcStraightEnd(x,y,angle,ratio);
+//		} else{
+//		[endX,endY,endAngleDeg]=drawSlideRail(x,y,angle, ratio, slide_ratio,0);
+//		}
 		const joint2 = {x:endX,y:endY,angle,id:rail_id,j_id:1};
 		joints.push(joint2);
     }
         // 曲線を追加
-    function addCurve(x, y,angle,type) {
+    function addCurve(x, y,angle,type,ratio) {
  		const rail_id = num_rail++;
 		const opp_angle = addDeg(angle, 180);
 	    const rail = {x,y,angle,type,id:rail_id };
 		const joint1 = {x,y,angle:opp_angle,id:rail_id,j_id:0};
 	    rails.push(rail);
 		joints.push(joint1);
-		[endX,endY,endAngleDeg] = CalcCurveEnd(x,y,angle,type,1.0);	     
+		[endX,endY,endAngleDeg] = CalcCurveEnd(x,y,angle,type,ratio);	     
  		const joint2 = {x:endX,y:endY,angle:endAngleDeg,id:rail_id,j_id:1};
 		joints.push(joint2);
     }
+	//Uターンレールを追加
+	function addUrail(x,y,angle,type){
+ 		const rail_id = num_rail++;
+		const opp_angle = addDeg(angle, 180);
+	    const rail = {x,y,angle,type,id:rail_id };
+		const joint1 = {x,y,angle:opp_angle,id:rail_id,j_id:0};
+	    rails.push(rail);
+		joints.push(joint1);
+		[endX,endY,endAngleDeg] = drawURCurveRail(x,y,angle,type,0);console.log(endX);	     
+ 		const joint2 = {x:endX,y:endY,angle:endAngleDeg,id:rail_id,j_id:1};
+		joints.push(joint2);
+
+	}
+
 	//ジョイントを描画
 	function drawJoint(x,y,angle,head) {
 		var deg_sin = Math.sin(angle * Math.PI / 180.0);
@@ -365,22 +447,35 @@ em {
 			return [eX,eY,eA];
 	}	
 
+	function drawArc(cx, cy, r, sa, ea, boo) {
+		ctx.beginPath();
+		ctx.arc(cx, cy, r, sa, ea, boo);
+		ctx.stroke();
+	}
+
+
 	//曲線レール描画
     function drawCurve(x,y,angle,type,ratio,id) {
 		let sinalpha = BASE_LENGTH * ratio * Math.sin(angle * Math.PI/180);
 		let cosalpha = BASE_LENGTH * ratio * Math.cos(angle * Math.PI/180);
-		
-		
+		let drawColorArray =[];
+		switch(type){
+			case 'R': case 'L':
+			drawColorArray = colorArray;break;
+			case 'G': case 'N':
+			drawColorArray = colorArray2;break;
+		}
 
-		if(type == 'R'){ 
+		switch(type){ 
+			case "R": case "G":{
 			const startangle = Math.PI+ angle * Math.PI/180;
 			const endangle   = Math.PI*0.25 + startangle;	
 			const midangle   = Math.PI*0.125+ startangle;
 				for (var i = 0; i < 4; i++) {
-                ctx.strokeStyle = colorArray[i];
+                ctx.strokeStyle = drawColorArray[i];
 				ctx.lineWidth = lineWidthArray[i];
 				ctx.beginPath();
-               	ctx.arc(x + cosalpha ,y + sinalpha , BASE_LENGTH, startangle, endangle);
+               	ctx.arc(x + cosalpha ,y + sinalpha , BASE_LENGTH * ratio, startangle, endangle);
 				ctx.stroke();
 				}
 			const x2 = x + cosalpha + BASE_LENGTH * ratio * Math.cos(endangle);
@@ -392,17 +487,20 @@ em {
 			const y3 = y + sinalpha + BASE_LENGTH * ratio * Math.sin(midangle);
                 ctx.fillStyle = 'white';
                 ctx.fillText(id.toString(), x3-5 , y3+3);
+				}
 
-			}
-		if(type == 'L'){
+			break;
+			
+			case "L":case "N":{
+
 			const startangle = angle * Math.PI/180;
 			const endangle   = startangle - Math.PI*0.25;	
 			const midangle   = startangle - Math.PI*0.125;
-				for (var i = 0; i < 4; i++) {
-                ctx.strokeStyle = colorArray[i];
+				for (let i = 0; i < 4; i++) {
+                ctx.strokeStyle = drawColorArray[i];
 				ctx.lineWidth = lineWidthArray[i];
 				ctx.beginPath();
-              	ctx.arc(x - cosalpha ,y - sinalpha , BASE_LENGTH, startangle, endangle,1);
+              	ctx.arc(x - cosalpha ,y - sinalpha , BASE_LENGTH * ratio, startangle, endangle,1);
 				ctx.stroke();
 				}
 			const x2 = x - cosalpha + BASE_LENGTH * ratio * Math.cos(endangle);
@@ -414,9 +512,8 @@ em {
 			const y3 = y - sinalpha + BASE_LENGTH * ratio * Math.sin(midangle);
 	            ctx.fillStyle = 'white';
                 ctx.fillText(id.toString(), x3-5 , y3+3);
-		
-			}
-                //ctx.fillText(id.toString(), x + 5,y - 40);
+			break;}
+            }    //ctx.fillText(id.toString(), x + 5,y - 40);
 
 		}
 //カーブの端点を計算
@@ -424,23 +521,145 @@ em {
 		let sinalpha = BASE_LENGTH * ratio * Math.sin(angle * Math.PI/180);
 		let cosalpha = BASE_LENGTH * ratio * Math.cos(angle * Math.PI/180);
 
-		if(type == 'R'){ 
+		switch(type){
+		case 'R':case 'G': 
 			var startangle = Math.PI+ angle * Math.PI/180;
-			var endangle   = Math.PI*0.25+ startangle;	
+			var endangle   = Math.PI * 0.25 + startangle;	
 			eX = x + cosalpha + BASE_LENGTH * ratio * Math.cos(endangle);
 			eY = y + sinalpha + BASE_LENGTH * ratio * Math.sin(endangle);
 			eA = addDeg(angle, 45);
-			}
-		if(type == 'L'){
+			break;
+		case 'L':case 'N':
 				startangle = angle * Math.PI/180;
 				endangle   = startangle - Math.PI*0.25;	
 			eX = x - cosalpha + BASE_LENGTH * ratio * Math.cos(endangle);
 			eY = y - sinalpha + BASE_LENGTH * ratio * Math.sin(endangle);
 			eA = addDeg(angle, - 45);
-			}
-		
+			break;
+		}
 		return [eX,eY,eA];
 	}
+
+//スライドレールの描画
+
+	//スライドコース 右ずれ幅割合を正
+	function drawSlideRail(sx,sy,angle, rail_ratio, slide_ratio,mode){//mode 0:計算のみ、1:描画、2:位置判定
+
+		const deg_sin =  Math.sin(angle * Math.PI / 180.0);
+		const deg_cos =  Math.cos(angle * Math.PI / 180.0);
+
+		const ex = sx + rail_ratio * BASE_LENGTH * deg_sin + slide_ratio * BASE_LENGTH * deg_cos;
+		const ey = sy - rail_ratio * BASE_LENGTH * deg_cos + slide_ratio * BASE_LENGTH * deg_sin;
+
+	if(mode == 1){//描画関連
+		const s1x = sx + 0.5 * rail_ratio * BASE_LENGTH * deg_sin ;
+		const s1y = sy - 0.5 * rail_ratio * BASE_LENGTH * deg_cos ;
+
+		const e1x = sx + 0.5 * rail_ratio * BASE_LENGTH * deg_sin + slide_ratio * BASE_LENGTH * deg_cos;
+		const e1y = sy - 0.5 * rail_ratio * BASE_LENGTH * deg_cos + slide_ratio * BASE_LENGTH * deg_sin;
+
+		
+			for (var i = 0; i < 4; i++) {
+				ctx.lineWidth = lineWidthArray[i];
+				ctx.strokeStyle = colorArray[i];
+
+				ctx.beginPath();
+				ctx.moveTo(sx, sy);
+				ctx.bezierCurveTo(s1x, s1y, e1x, e1y, ex, ey);
+//				ctx.lineTo(s1x, s1y);
+//				ctx.lineTo(e1x, e1y);
+//				ctx.lineTo(ex, ey);
+				ctx.stroke();
+			}
+			drawJoint(sx,sy,angle);
+			drawJoint(ex,ey,angle,1);
+
+		
+		}
+		return [ex,ey,angle];
+	}
+
+//
+	// Uターンレール(右）	   
+	function drawURCurveRail(sx,sy,angle,type,mode) {//URAIL_RADIUS_RATIO mode:0終点計算、1描画
+		const a = type =='V'?-1:1;
+		const b = type =='V'? 0:1;
+		const c = type =='V'? 1:0;
+		
+	
+		//angle -= 90; 
+		var deg_sin = Math.sin(angle * Math.PI / 180.0);
+		var deg_cos = Math.cos(angle * Math.PI / 180.0);
+
+		
+		if(mode ==1){
+		//Aパーツ
+		var c1x = sx + BASE_LENGTH *( URAIL_CNCT_R_RATIO + c* DOUBLE_TRACK_DISTANCE_RATIO  )* deg_cos;
+		var c1y = sy + BASE_LENGTH *( URAIL_CNCT_R_RATIO + c* DOUBLE_TRACK_DISTANCE_RATIO  )* deg_sin;
+		var s1a = (angle - 180 ) * Math.PI / 180.0;
+		var e1a = (angle - 135 ) * Math.PI / 180.0;
+		
+		//Bパーツ
+		var c2x = sx + BASE_LENGTH * ((URAIL_RADIUS_RATIO + URAIL_CNCT_R_RATIO )* Math.sqrt(0.5) * deg_sin - a* DOUBLE_TRACK_DISTANCE_RATIO / 2 * deg_cos  );
+		var c2y = sy - BASE_LENGTH * ((URAIL_RADIUS_RATIO + URAIL_CNCT_R_RATIO )* Math.sqrt(0.5) * deg_cos + a* DOUBLE_TRACK_DISTANCE_RATIO / 2 * deg_sin  );
+		var s2a = (angle - 225) * Math.PI / 180.0;
+		var e2a = (angle + 45) * Math.PI / 180.0;
+
+
+		//Cパーツ
+		var c3x = sx - BASE_LENGTH *( URAIL_CNCT_R_RATIO + b* DOUBLE_TRACK_DISTANCE_RATIO )* deg_cos;
+		var c3y = sy - BASE_LENGTH *( URAIL_CNCT_R_RATIO + b* DOUBLE_TRACK_DISTANCE_RATIO )* deg_sin;
+		var s3a = (angle    ) * Math.PI / 180.0;
+		var e3a = (angle- 45) * Math.PI / 180.0;
+
+		var a1 = BASE_LENGTH * URAIL_CNCT_R_RATIO * 0.5;
+		var b1 = BASE_LENGTH * URAIL_CNCT_R_RATIO * 0.2 * a ;
+		}
+		
+		var d1 = BASE_LENGTH * a* DOUBLE_TRACK_DISTANCE_RATIO;
+
+
+
+		if(mode == 1){
+				ctx.lineWidth = lineWidthArray[0];
+				ctx.strokeStyle = colorArray5[1];
+				ctx.fillStyle   = colorArray5[1];
+				drawArc(c2x, c2y, BASE_LENGTH * URAIL_RADIUS_RATIO , e2a, s2a, false); 
+				
+				
+				ctx.beginPath();
+				ctx.moveTo(sx, sy);
+				ctx.lineTo(sx + a1 * deg_sin + b1 * deg_cos , sy -a1 * deg_cos + b1 * deg_sin);
+				ctx.lineTo(sx + a1 * deg_sin -(b1 + d1) * deg_cos , sy -a1 * deg_cos -(b1+ d1) * deg_sin);
+				ctx.lineTo(sx - d1 * deg_cos , sy - d1 * deg_sin);
+				ctx.closePath();
+				ctx.fill();
+
+			for (var i = 0; i < 4; i++) {
+				ctx.lineWidth = lineWidthArray[i];
+				ctx.strokeStyle = colorArray5[i];
+				drawArc(c2x, c2y, BASE_LENGTH * URAIL_RADIUS_RATIO , s2a, e2a, false); 
+				drawArc(c1x, c1y, BASE_LENGTH * URAIL_CNCT_R_RATIO , s1a, e1a, false); 
+				drawArc(c3x, c3y, BASE_LENGTH * URAIL_CNCT_R_RATIO , e3a, s3a, false); 
+			}
+		}
+
+	//	minX = Math.min(minX, c2x - BASE_LENGTH * URAIL_RADIUS_RATIO);
+	//	maxX = Math.max(maxX, c2x + BASE_LENGTH * URAIL_RADIUS_RATIO);
+	//	minY = Math.min(minY, c2y - BASE_LENGTH * URAIL_RADIUS_RATIO);
+	//	maxY = Math.max(maxY, c2y + BASE_LENGTH * URAIL_RADIUS_RATIO);
+
+		ex = sx - d1 * deg_cos;
+		ey = sy - d1 * deg_sin;
+		eA = addDeg(angle,180);
+		if(mode ==1){
+		drawJoint(sx,sy,angle);
+		drawJoint(ex,ey,angle);}
+		return [ex,ey,eA];
+
+	}
+
+
 
 
         // 描画
@@ -457,6 +676,29 @@ em {
 				drawCurve(rail.x, rail.y,rail.angle,'R',1,rail.id); break;
 			case 'L':
 				drawCurve(rail.x, rail.y,rail.angle,'L',1,rail.id); break;
+			case 'G':
+				drawCurve(rail.x, rail.y,rail.angle,'G',1+DOUBLE_TRACK_DISTANCE_RATIO,rail.id); break;
+			case 'N':
+				drawCurve(rail.x, rail.y,rail.angle,'N',1+DOUBLE_TRACK_DISTANCE_RATIO,rail.id); break;
+			case 'H':
+				drawStraight(rail.x, rail.y, rail.angle,0.5
+				,rail.id); break;
+			case 'Q':
+				drawStraight(rail.x, rail.y, rail.angle,0.25,rail.id); break;
+			case 'D':
+				drawStraight(rail.x, rail.y, rail.angle,2,rail.id); break;
+//"U"：Uターン（右）"V"：Uターン（左）"A"：複線幅（右）C：複線幅（左）X：Y字幅（右）"Z"：Y字幅（左）
+			case 'A':
+				drawSlideRail(rail.x, rail.y, rail.angle, 1.0,  DOUBLE_TRACK_DISTANCE_RATIO,1); break;
+			case 'C':
+				drawSlideRail(rail.x, rail.y, rail.angle, 1.0, -DOUBLE_TRACK_DISTANCE_RATIO,1); break;
+			case 'X':
+				drawSlideRail(rail.x, rail.y, rail.angle, 1.0,  0.25,1); break;
+			case 'Z':
+				drawSlideRail(rail.x, rail.y, rail.angle, 1.0, -0.25,1); break;
+			case 'U': case'V':
+				drawURCurveRail(rail.x, rail.y, rail.angle,rail.type,1); break;
+			
 			default:
 
 			}
@@ -468,7 +710,12 @@ em {
 		//ジョイント配列の確認
 		showAllJoints();
 		}
-    }
+    
+//	drawURCurveRail(-100,0,0,1)
+//	drawURCurveRail(0,0,60,1)
+//	drawSlideRail(0,0,-90, 1, -0.25,1)//スライドレールテスト
+//	drawSlideRail(0,0,270, 1, 0.25,1)
+	}
 
 
   function draw_interval(){
@@ -478,20 +725,15 @@ em {
   }
 
 
-
-    
-	
-
 //タッチパネル	スタート
 	function onTouchstart(ev) {
 		const e = ev.changedTouches[0];
-		const rect = canvas.getBoundingClientRect();
 		dfx= 0; dfy=0;
 		
 		if (ev.touches.length <= 1) {
-			preMouseX = (e.clientX - canvasOffsetX - rect.left);
-			preMouseY = (e.clientY - canvasOffsetY - rect.top );
-			onMouseprocess(preMouseX,preMouseY);
+	
+			onMouseStart(e);
+
     // 指2本の2本の指のＸ座標の差とＹ座標の差を加えた値を記録
 		} else if (ev.touches.length >= 2) {
 			var p1 = ev.touches[0];
@@ -499,6 +741,7 @@ em {
 			prePinchDist = Math.sqrt((p1.pageX - p2.pageX)*(p1.pageX - p2.pageX) +(p1.pageY - p2.pageY)*(p1.pageY - p2.pageY));
 			preScale = drawScale;
 		}
+		
 		if(!touchcount){touchcount++;
 			setTimeout(function(){touchcount=0;},600);
 		}else{
@@ -514,14 +757,14 @@ em {
 		const rect = canvas.getBoundingClientRect();
 			preMouseX = (e.clientX - canvasOffsetX - rect.left);
 			preMouseY = (e.clientY - canvasOffsetY - rect.top );
-		onMouseprocess(preMouseX,preMouseY);
+			onMouseprocess(preMouseX,preMouseY);
 	
 	}
 
 	function onMouseprocess(preMouseX,preMouseY){
 	    const mouseX = preMouseX/drawScale;
         const mouseY = preMouseY/drawScale;
-			selectedRail = rails.find(rail =>	isPointOnRail(mouseX, mouseY, rail.x , rail.y,rail.angle, rail.type) );
+			selectedRail = rails.slice().reverse().find(rail =>	isPointOnRail(mouseX, mouseY, rail.x , rail.y,rail.angle, rail.type) );
 			if(selectedRail){
                 dfx = selectedRail.x - mouseX;
                 dfy = selectedRail.y - mouseY;
@@ -529,11 +772,10 @@ em {
 			}
 			if(!selectedRail){isDraggingCanvas = true;}
 			if(showArrowSet){
-				CheckArrowset(mouseX,mouseY,endX,endY,endAngleDeg);
 				isPointOnJointMark(mouseX,mouseY);
+				CheckArrowset(mouseX,mouseY,endX,endY,endAngleDeg);
 			}
 	}
-
 
 
   function onMouseMove(e) {
@@ -570,12 +812,6 @@ em {
 
     }
 
-
-
-
-
-	
-	
 	// マウスダブルクリック時の処理
 	function onDblClick(e){
         const mouseX = e.clientX - canvasOffsetX - canvas.getBoundingClientRect().left;
@@ -584,7 +820,7 @@ em {
     }
 
 	function dbcickprocess(mouseX,mouseY){
-		//console.log(mouseX+","+mouseY);
+		console.log(mouseX+","+mouseY);
         rails.forEach((rail,index) =>{//
                 if (isPointOnRail(mouseX, mouseY,rail.x,rail.y,rail.angle,rail.type)) {
                     console.log(rail.id);
@@ -627,8 +863,7 @@ em {
     // マウスアップ時の処理
 	function onDragEnd(){
 				if(selectedRail){
-					const selectedJoint = joints.find(joint => isPointClose(selectedRail.x,selectedRail.y,selectedRail.id,joint.x,joint.y,joint.id,CONECT_LIMIT_D))
-
+					const selectedJoint = joints.find(joint => isPointClose(selectedRail.x,selectedRail.y,selectedRail.id,joint.x,joint.y,joint.id,CONECT_LIMIT_D));
 					if(selectedJoint){//console.log(selectedJoint);console.log(selectedRail.id);
 						
 					    if(	selectedRail.x != selectedJoint.x && selectedRail.y != selectedJoint.y){
@@ -636,9 +871,26 @@ em {
 							selectedRail.x = selectedJoint.x;
 							selectedRail.y = selectedJoint.y;
 						}
+					}else{
+					let xe2;
+					let ye2;
+					let angle2;
+					[xe2,ye2,angle2] = CalcRailEnd(selectedRail.x,selectedRail.y,selectedRail.angle,selectedRail.type);
+					const selectedJoint2 = joints.find(joint => isPointClose(xe2,ye2,selectedRail.id,joint.x,joint.y,joint.id,CONECT_LIMIT_D));
+					if(selectedJoint2){
+						if(selectedJoint2.angle == addDeg(angle2,180)){
+							const dfex = selectedJoint2.x - xe2;
+							const dfey = selectedJoint2.y - ye2;
+							selectedRail.x += dfex;
+							selectedRail.y += dfey;
+							console.log(selectedJoint2);
+							}
+									
+						}
+					
 					}
 						
-					CalcRailEnd(selectedRail.x,selectedRail.y,selectedRail.angle,selectedRail.type);
+					[endX,endY,endAngleDeg] = CalcRailEnd(selectedRail.x,selectedRail.y,selectedRail.angle,selectedRail.type);
 					renewJointCoord(selectedRail.id,selectedRail.x,selectedRail.y,selectedRail.angle);
 					//console.log(joints);
 					draw();LastselectedRail = selectedRail;
@@ -755,18 +1007,18 @@ em {
 		const opp_angle = addDeg(rail.angle, -180);
 		const joint1 = {x:rail.x,y:rail.y,angle:opp_angle,id:rail.id,j_id:0};
 		joints.push(joint1);
-		switch(rail.type){
-		case 'S':
+	//	switch(rail.type){
+	//	case 'S':
 // if rail.type S
-			[endX,endY,endAngleDeg] = CalcStraightEnd(rail.x,rail.y,rail.angle,1.0);
+			[endX,endY,endAngleDeg] = CalcRailEnd(rail.x,rail.y,rail.angle,rail.type);
 			joint2 = {x:endX,y:endY,angle:rail.angle,id:rail.id,j_id:1};
-			break;
-		case 'R': case 'L':
-// if rail.type RL
-			[endX,endY,endAngleDeg] = CalcCurveEnd(rail.x,rail.y,rail.angle,rail.type,1.0);	     
-			joint2 = {x:endX,y:endY,angle:endAngleDeg,id:rail.id,j_id:1};
-		default:	
-		}
+//			break;
+
+
+
+
+//		default:	
+//		}
 
 		joints.push(joint2);
 
@@ -803,12 +1055,32 @@ em {
 			return isPointInArc(pointX, pointY, x, y, angle,type, BASE_LENGTH); break;
 		case 'L':
 			return isPointInArc(pointX, pointY, x, y, angle,type,  BASE_LENGTH); break;
+		case 'G':case 'N':
+			return isPointInArc(pointX, pointY, x, y, angle,type,  BASE_LENGTH * (1 + DOUBLE_TRACK_DISTANCE_RATIO)); break;
+		case 'H':
+			return isPointInRectangle(pointX, pointY,x,y,angle,  BASE_LENGTH * 0.5 ); break;
+		case 'Q':
+			return isPointInRectangle(pointX, pointY,x,y,angle,  BASE_LENGTH * 0.25); break;
+		case 'D':
+			return isPointInRectangle(pointX, pointY,x,y,angle,  BASE_LENGTH * 2); break;
+//"U"：Uターン（右）"V"：Uターン（左）"A"：複線幅（右）C：複線幅（左）X：Y字幅（右）"Z"：Y字幅（左）
+		case 'A':
+			return isPointOnBelt(pointX, pointY,x,y,angle,1,DOUBLE_TRACK_DISTANCE_RATIO); break;
+		case 'C':
+			return isPointOnBelt(pointX, pointY,x,y,angle,1,-DOUBLE_TRACK_DISTANCE_RATIO); break;
+		case 'X':
+			return isPointOnBelt(pointX, pointY,x,y,angle,1,0.25); break;
+		case 'Y':
+			return isPointOnBelt(pointX, pointY,x,y,angle,1,-0.25); break;
+
+
 		default:return 0;
 		}
 	}
 
 //タッチ点がジョイント矢印の上にあるかどうか
 	function isPointOnJointMark(pointX,pointY){
+			 setTimeout(function(){
 	         joints.forEach((joint,index) =>{//console.log(rail.id);
 				const sx = joint.x + 14 * Math.cos(joint.angle *Math.PI/180);
 				const sy = joint.y + 14 * Math.sin(joint.angle *Math.PI/180);
@@ -816,9 +1088,10 @@ em {
                     //console.log(index);
 					endX = joint.x;
 					endY = joint.y;
-					endAngleDeg = joint.angle;return true;
+					endAngleDeg = joint.angle;draw();return true;
 				}
 		});
+		},500);
 	}
 
 	// 点が直線上にあるかどうかを判定する関数
@@ -834,23 +1107,33 @@ em {
 		return tt>0 && tt< r2 && (f1 * f1)/r2 < distance2;
 	}
 
+	// 点が直線上にあるかどうかを判定する関数
+	function isPointOnBelt(pointX, pointY,sx,sy,angle,rail_ratio,slide_ratio){
+	//起点（sx,sy)からベクトル(a,b)に引かれた直線上に（pointX,pointY)があるか
+		const deg_sin =  Math.sin(angle * Math.PI / 180.0);
+		const deg_cos =  Math.cos(angle * Math.PI / 180.0);
+		
+		const a =   rail_ratio * BASE_LENGTH * deg_sin + slide_ratio * BASE_LENGTH * deg_cos;
+		const b = - rail_ratio * BASE_LENGTH * deg_cos + slide_ratio * BASE_LENGTH * deg_sin;
+		const r2 =  a**2 + b**2 ;
+		const tt = -(a*  (sx - pointX) + b * (sy - pointY));
+		const f1 =   a * (sy - pointY) - b * (sx - pointX);
+		const distance2 = BASE_WIDTH * BASE_WIDTH * 0.25  *0.9; 
+		return tt>0 && tt< r2 && (f1 * f1)/r2 < distance2;
+	}
 
         // 点が曲線レール上にあるかどうかを判定する関数(R)
-    function isPointInArc2(pointX, pointY, arcX, arcY,angle,type, radius) {
-	// R:1, L:-1 
-			const a = type == 'R'? 1:-1 ;
-            const sinalpha = radius * Math.sin(angle * Math.PI/180);
-			const cosalpha = radius * Math.cos(angle * Math.PI/180);
-            const dx = pointX - arcX - a * cosalpha;
-            const dy = pointY - arcY - a * sinalpha;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-		
-            return (distance <= radius +0.5*BASE_WIDTH) && (distance > radius -0.5*BASE_WIDTH);
-    }
-		
 	function isPointInArc(PointX, PointY, arcX, arcY,angle,type, radius) {
-			const a = (type == 'R')? 1:-1 ;
-			const rtdr = (type == 'R')? 0:1;
+			let a  ;
+			let rtdr;
+			switch(type){
+			case'R':case'G':
+			a =1;rtdr = 0;
+			break;
+			case 'L':case 'N':
+			a = -1;rtdr = 1; 	
+			break;
+			}
             const sinalpha = radius * Math.sin(angle * Math.PI/180);
 			const cosalpha = radius * Math.cos(angle * Math.PI/180);
             const x =  arcX + a * cosalpha;
@@ -867,6 +1150,10 @@ em {
 			return IsPointOnArrow(PointX,PointY,x,y,a1,a2,radius,BASE_WIDTH,rtdr);
 		
 	}
+
+
+
+
 		
 
 //操作用の矢印をセットで表示させる関数
@@ -936,7 +1223,7 @@ em {
 	function RotateRail(degree){
 		if(LastselectedRail){
 		LastselectedRail.angle = addDeg(LastselectedRail.angle,degree);
-		CalcRailEnd(LastselectedRail.x,LastselectedRail.y,LastselectedRail.angle,LastselectedRail.type);
+		[endX,endY,endAngleDeg] = CalcRailEnd(LastselectedRail.x,LastselectedRail.y,LastselectedRail.angle,LastselectedRail.type);
 		renewJointCoord(LastselectedRail.id,LastselectedRail.x,LastselectedRail.y,LastselectedRail.angle);
 		draw();
 		}
@@ -1308,7 +1595,27 @@ function genPath() {
 
     <input id="btn_b" type="button" value="戻す" onclick="scaleReset();draw();" class="basic_btn2" />
     <input id="btn_rst" type="button" value="リセット" onclick="clearData();" class="basic_btn3" />
- <hr>
+    <input id="btn_v" type="button" value="特" onclick="add_SP_Rail('railSelect');draw();" class="scn_btn" style="center" />
+	<label class="scn_btn" for="dataSelect">/</label>
+    <select id="railSelect"　class="scn_btn" name="railSelect">
+        <option value="G">複線外側（右）</option>
+        <option value="N">複線外側（左）</option>
+        <option value="U">Uターン（右）</option>
+        <option value="V">Uターン（左）</option>
+        <option value="A">複線幅（右）</option>
+        <option value="C">複線幅（左）</option>
+        <option value="X">Y字幅（右）</option>
+        <option value="Z">Y字幅（左）</option>
+    </select>
+<input id="btn_v2" type="button" value="直" onclick="add_SP_Rail('railSelect2');draw();" class="scn_btn" style="center" />
+ 	<label class="scn_btn" for="dataSelect2">/</label>
+    <select id="railSelect2"　class="scn_btn" name="railSelect2">
+        <option value="H">1/2直線</option>
+        <option value="Q">1/4直線</option>
+        <option value="D">倍直線</option>
+        <option value="J">ジョイント</option>
+   </select>
+<hr>
 
    <div id="scn_btn_set">
     <input id="btn_save" type="button" value="保存" onclick="save()" class="scn_btn"  style="" />
