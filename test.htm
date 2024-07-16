@@ -169,7 +169,7 @@ em {
 //H:1/2レール　Q:1/4レール　D:倍直線　J:ジョイントレール（1/6)
 //"U"：Uターン（右）"V"：Uターン（左）"A"：複線幅（右）C：複線幅（左）X：Y字幅（右）"Z"：Y字幅（左）
 //レールを追加するのに必要な改修箇所　レール配列にレールを追加する関数(②が必要）、起点（ｘ、ｙ、angle）に対応して描画する関数①、終点を計算する関数②、タッチポイントに対してタッチ判定する関数③ 
-// addRail()にcaseを追加　	CalcRailEnd（）にcaseを追加　draw（）にcaseを追加　isPointOnRail（）にcaseを追加　renewAllJointCoord()にcaseを追加　
+// addRail()にcaseを追加　	CalcRailEnd（）にcaseを追加　draw（）にcaseを追加　isPointOnRail（）にcaseを追加　
 	
 	
 	const lineWidthArray = [BASE_WIDTH, 12, 6, 4];
@@ -313,15 +313,15 @@ em {
 					[ex,ey,eAngle] = CalcCurveEnd(x,y,angle,type,1.0+DOUBLE_TRACK_DISTANCE_RATIO);break;
 //"U"：Uターン（右）"V"：Uターン（左）"A"：複線幅（右）C：複線幅（左）X：Y字幅（右）"Z"：Y字幅（左）
 			case 'A':
-					[ex,ey,eAngle] = drawSlideRail(x,y,angle, 1.0, DOUBLE_TRACK_DISTANCE_RATIO,0);break;
+					[ex,ey,eAngle] = drawSlideRail(x,y,angle, 1.0, DOUBLE_TRACK_DISTANCE_RATIO,0,0);break;
 			case 'C':
-					[ex,ey,eAngle] = drawSlideRail(x,y,angle, 1.0, -DOUBLE_TRACK_DISTANCE_RATIO,0);break;
+					[ex,ey,eAngle] = drawSlideRail(x,y,angle, 1.0, -DOUBLE_TRACK_DISTANCE_RATIO,0,0);break;
 			case 'X':
-					[ex,ey,eAngle] = drawSlideRail(x,y,angle, 1.0, 0.25,0);break;
+					[ex,ey,eAngle] = drawSlideRail(x,y,angle, 1.0, 0.25,0,0);break;
 			case 'Y':
-					[ex,ey,eAngle] = drawSlideRail(x,y,angle, 1.0, -0.25,0);break;
+					[ex,ey,eAngle] = drawSlideRail(x,y,angle, 1.0, -0.25,0,0);break;
 			case 'U':case 'V':
-					[ex,ey,eAngle] = drawURCurveRail(x,y,angle,type,0);break;
+					[ex,ey,eAngle] = drawURCurveRail(x,y,angle,type,0,0,0,0);break;
 
 			default:console.log("no type");		
 		}
@@ -337,7 +337,7 @@ em {
 	    rails.push(rail);
 		joints.push(joint1);
 //		if(slide_ratio == 0){
-		[endX,endY,endAngleDeg]=drawSlideRail(x,y,angle, ratio, slide_ratio,0);
+		[endX,endY,endAngleDeg]=drawSlideRail(x,y,angle, ratio, slide_ratio,0,0);
 //		[endX,endY,endAngleDeg]=CalcStraightEnd(x,y,angle,ratio);
 //		} else{
 //		[endX,endY,endAngleDeg]=drawSlideRail(x,y,angle, ratio, slide_ratio,0);
@@ -365,7 +365,7 @@ em {
 		const joint1 = {x,y,angle:opp_angle,id:rail_id,j_id:0};
 	    rails.push(rail);
 		joints.push(joint1);
-		[endX,endY,endAngleDeg] = drawURCurveRail(x,y,angle,type,0);console.log(endX);	     
+		[endX,endY,endAngleDeg] = drawURCurveRail(x,y,angle,type,0,0,0,0);console.log(endX);	     
  		const joint2 = {x:endX,y:endY,angle:endAngleDeg,id:rail_id,j_id:1};
 		joints.push(joint2);
 
@@ -543,7 +543,7 @@ em {
 //スライドレールの描画
 
 	//スライドコース 右ずれ幅割合を正
-	function drawSlideRail(sx,sy,angle, rail_ratio, slide_ratio,mode){//mode 0:計算のみ、1:描画、2:位置判定
+	function drawSlideRail(sx,sy,angle, rail_ratio, slide_ratio,mode,id){//mode 0:計算のみ、1:描画、2:位置判定
 
 		const deg_sin =  Math.sin(angle * Math.PI / 180.0);
 		const deg_cos =  Math.cos(angle * Math.PI / 180.0);
@@ -574,6 +574,9 @@ em {
 			drawJoint(sx,sy,angle);
 			drawJoint(ex,ey,angle,1);
 
+	            ctx.fillStyle = 'white';
+                ctx.fillText(id.toString(), (s1x+e1x)/2-5 , (s1y+e1y)/2+3);
+
 		
 		}
 		return [ex,ey,angle];
@@ -581,7 +584,7 @@ em {
 
 //
 	// Uターンレール(右）	   
-	function drawURCurveRail(sx,sy,angle,type,mode) {//URAIL_RADIUS_RATIO mode:0終点計算、1描画
+	function drawURCurveRail(sx,sy,angle,type,mode,id,PointX,PointY) {//URAIL_RADIUS_RATIO mode:0終点計算、1描画、2タッチ判定
 		const a = type =='V'?-1:1;
 		const b = type =='V'? 0:1;
 		const c = type =='V'? 1:0;
@@ -592,12 +595,12 @@ em {
 		var deg_cos = Math.cos(angle * Math.PI / 180.0);
 
 		
-		if(mode ==1){
+		if(mode ==1 || mode ==2){
 		//Aパーツ
 		var c1x = sx + BASE_LENGTH *( URAIL_CNCT_R_RATIO + c* DOUBLE_TRACK_DISTANCE_RATIO  )* deg_cos;
 		var c1y = sy + BASE_LENGTH *( URAIL_CNCT_R_RATIO + c* DOUBLE_TRACK_DISTANCE_RATIO  )* deg_sin;
-		var s1a = (angle - 180 ) * Math.PI / 180.0;
-		var e1a = (angle - 135 ) * Math.PI / 180.0;
+		var s1a = (angle + 180 ) * Math.PI / 180.0;
+		var e1a = (angle + 225 ) * Math.PI / 180.0;
 		
 		//Bパーツ
 		var c2x = sx + BASE_LENGTH * ((URAIL_RADIUS_RATIO + URAIL_CNCT_R_RATIO )* Math.sqrt(0.5) * deg_sin - a* DOUBLE_TRACK_DISTANCE_RATIO / 2 * deg_cos  );
@@ -642,7 +645,21 @@ em {
 				drawArc(c1x, c1y, BASE_LENGTH * URAIL_CNCT_R_RATIO , s1a, e1a, false); 
 				drawArc(c3x, c3y, BASE_LENGTH * URAIL_CNCT_R_RATIO , e3a, s3a, false); 
 			}
+		}else if(mode ==2){
+		
+				//drawArc(c2x, c2y, BASE_LENGTH * URAIL_RADIUS_RATIO , s2a, e2a, false); 
+				//drawArc(c1x, c1y, BASE_LENGTH * URAIL_CNCT_R_RATIO , s1a, e1a, false); 
+				//drawArc(c3x, c3y, BASE_LENGTH * URAIL_CNCT_R_RATIO , e3a, s3a, false); 
+			if(IsPointOnArrow(PointX,PointY,c2x, c2y,s2a, e2a,BASE_LENGTH * URAIL_RADIUS_RATIO ,BASE_WIDTH,false))return true;
+			if(IsPointOnArrow(PointX,PointY,c3x, c3y,s3a, e3a,BASE_LENGTH * URAIL_CNCT_R_RATIO ,BASE_WIDTH,false))return true;
+			if(IsPointOnArrow(PointX,PointY,c1x, c1y,s1a, e1a,BASE_LENGTH * URAIL_CNCT_R_RATIO ,BASE_WIDTH,false))return true;
+			
+			return false;		
+		
 		}
+
+		
+
 
 	//	minX = Math.min(minX, c2x - BASE_LENGTH * URAIL_RADIUS_RATIO);
 	//	maxX = Math.max(maxX, c2x + BASE_LENGTH * URAIL_RADIUS_RATIO);
@@ -689,15 +706,15 @@ em {
 				drawStraight(rail.x, rail.y, rail.angle,2,rail.id); break;
 //"U"：Uターン（右）"V"：Uターン（左）"A"：複線幅（右）C：複線幅（左）X：Y字幅（右）"Z"：Y字幅（左）
 			case 'A':
-				drawSlideRail(rail.x, rail.y, rail.angle, 1.0,  DOUBLE_TRACK_DISTANCE_RATIO,1); break;
+				drawSlideRail(rail.x, rail.y, rail.angle, 1.0,  DOUBLE_TRACK_DISTANCE_RATIO,1,rail.id); break;
 			case 'C':
-				drawSlideRail(rail.x, rail.y, rail.angle, 1.0, -DOUBLE_TRACK_DISTANCE_RATIO,1); break;
+				drawSlideRail(rail.x, rail.y, rail.angle, 1.0, -DOUBLE_TRACK_DISTANCE_RATIO,1,rail.id); break;
 			case 'X':
-				drawSlideRail(rail.x, rail.y, rail.angle, 1.0,  0.25,1); break;
+				drawSlideRail(rail.x, rail.y, rail.angle, 1.0,  0.25,1,rail.id); break;
 			case 'Z':
-				drawSlideRail(rail.x, rail.y, rail.angle, 1.0, -0.25,1); break;
+				drawSlideRail(rail.x, rail.y, rail.angle, 1.0, -0.25,1,rail.id); break;
 			case 'U': case'V':
-				drawURCurveRail(rail.x, rail.y, rail.angle,rail.type,1); break;
+				drawURCurveRail(rail.x, rail.y, rail.angle,rail.type,1,rail.id,0,0); break;
 			
 			default:
 
@@ -713,8 +730,6 @@ em {
     
 //	drawURCurveRail(-100,0,0,1)
 //	drawURCurveRail(0,0,60,1)
-//	drawSlideRail(0,0,-90, 1, -0.25,1)//スライドレールテスト
-//	drawSlideRail(0,0,270, 1, 0.25,1)
 	}
 
 
@@ -1011,7 +1026,7 @@ em {
 	//	case 'S':
 // if rail.type S
 			[endX,endY,endAngleDeg] = CalcRailEnd(rail.x,rail.y,rail.angle,rail.type);
-			joint2 = {x:endX,y:endY,angle:rail.angle,id:rail.id,j_id:1};
+			joint2 = {x:endX,y:endY,angle:endAngleDeg,id:rail.id,j_id:1};
 //			break;
 
 
@@ -1072,6 +1087,8 @@ em {
 			return isPointOnBelt(pointX, pointY,x,y,angle,1,0.25); break;
 		case 'Y':
 			return isPointOnBelt(pointX, pointY,x,y,angle,1,-0.25); break;
+		case 'U':case 'V':
+			return drawURCurveRail(x,y,angle,type,2,0,pointX,pointY); break;
 
 
 		default:return 0;
