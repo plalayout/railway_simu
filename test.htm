@@ -80,7 +80,7 @@ em {
   //visibility: hidden;
   z-index: 3;
 }
-#dataSelect{
+#dataSelect,#railSelect,#railSelect2{
   border:1px solid black;font-size: 150%;
 }
     </style>
@@ -646,13 +646,13 @@ em {
 				drawArc(c3x, c3y, BASE_LENGTH * URAIL_CNCT_R_RATIO , e3a, s3a, false); 
 			}
 		}else if(mode ==2){
-		
+		console.log([s1a/Math.PI * 180.0,e1a/Math.PI * 180.0,s2a/Math.PI * 180.0,e2a/Math.PI * 180.0,s3a/Math.PI * 180.0,e3a/Math.PI * 180.0]);
 				//drawArc(c2x, c2y, BASE_LENGTH * URAIL_RADIUS_RATIO , s2a, e2a, false); 
 				//drawArc(c1x, c1y, BASE_LENGTH * URAIL_CNCT_R_RATIO , s1a, e1a, false); 
 				//drawArc(c3x, c3y, BASE_LENGTH * URAIL_CNCT_R_RATIO , e3a, s3a, false); 
-			if(IsPointOnArrow(PointX,PointY,c2x, c2y,s2a, e2a,BASE_LENGTH * URAIL_RADIUS_RATIO ,BASE_WIDTH,false))return true;
-			if(IsPointOnArrow(PointX,PointY,c3x, c3y,s3a, e3a,BASE_LENGTH * URAIL_CNCT_R_RATIO ,BASE_WIDTH,false))return true;
-			if(IsPointOnArrow(PointX,PointY,c1x, c1y,s1a, e1a,BASE_LENGTH * URAIL_CNCT_R_RATIO ,BASE_WIDTH,false))return true;
+			if(IsPointOnArrow(PointX,PointY,c2x, c2y,0, 359,BASE_LENGTH * URAIL_RADIUS_RATIO ,BASE_WIDTH,0))return true;
+			if(IsPointOnArrow(PointX,PointY,c3x, c3y,s3a/Math.PI * 180.0, e3a/Math.PI * 180.0,BASE_LENGTH * URAIL_CNCT_R_RATIO ,BASE_WIDTH,false))return true;
+			if(IsPointOnArrow(PointX,PointY,c1x, c1y,s1a/Math.PI * 180.0, e1a/Math.PI * 180.0,BASE_LENGTH * URAIL_CNCT_R_RATIO ,BASE_WIDTH,1))return true;
 			
 			return false;		
 		
@@ -1608,12 +1608,12 @@ function genPath() {
     <input id="btn_L" type="button" value="L" onclick="addRail('L');draw();" class="basic_btn" style="center" />
     <input id="btn_S" type="button" value="S" onclick="addRail('S');draw();" class="basic_btn" style="center" />
     <input id="btn_R" type="button" value="R" onclick="addRail('R');draw();" class="basic_btn" style="center" />
- <br/><br/>
+ <br/>
 
-    <input id="btn_b" type="button" value="戻す" onclick="scaleReset();draw();" class="basic_btn2" />
-    <input id="btn_rst" type="button" value="リセット" onclick="clearData();" class="basic_btn3" />
+    <input id="btn_b" type="button" value="リサイズ" onclick="scaleReset();draw();" class="basic_btn"" />
+    <input id="btn_rst" type="button" value="全消" onclick="clearData();" class="scn_btn" /><br/>
     <input id="btn_v" type="button" value="特" onclick="add_SP_Rail('railSelect');draw();" class="scn_btn" style="center" />
-	<label class="scn_btn" for="dataSelect">/</label>
+	<label class="scn_btn" for="railSelect"></label>
     <select id="railSelect"　class="scn_btn" name="railSelect">
         <option value="G">複線外側（右）</option>
         <option value="N">複線外側（左）</option>
@@ -1625,7 +1625,7 @@ function genPath() {
         <option value="Z">Y字幅（左）</option>
     </select>
 <input id="btn_v2" type="button" value="直" onclick="add_SP_Rail('railSelect2');draw();" class="scn_btn" style="center" />
- 	<label class="scn_btn" for="dataSelect2">/</label>
+ 	<label class="scn_btn" for="railSelect2"></label>
     <select id="railSelect2"　class="scn_btn" name="railSelect2">
         <option value="H">1/2直線</option>
         <option value="Q">1/4直線</option>
