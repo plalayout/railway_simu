@@ -644,9 +644,17 @@ em {
 				drawArc(c2x, c2y, BASE_LENGTH * URAIL_RADIUS_RATIO , s2a, e2a, false); 
 				drawArc(c1x, c1y, BASE_LENGTH * URAIL_CNCT_R_RATIO , s1a, e1a, false); 
 				drawArc(c3x, c3y, BASE_LENGTH * URAIL_CNCT_R_RATIO , e3a, s3a, false); 
-			}
+				}
+				
+			const x3 = sx - (d1 * deg_cos)/2;
+			const y3 = sy - (a1 * deg_cos + b1 * deg_sin)/2;
+	            ctx.fillStyle = 'white';
+                ctx.fillText(id.toString(), x3-5 , y3+3);
+				
+				
+				
 		}else if(mode ==2){
-		console.log([s1a/Math.PI * 180.0,e1a/Math.PI * 180.0,s2a/Math.PI * 180.0,e2a/Math.PI * 180.0,s3a/Math.PI * 180.0,e3a/Math.PI * 180.0]);
+		//console.log([s1a/Math.PI * 180.0,e1a/Math.PI * 180.0,s2a/Math.PI * 180.0,e2a/Math.PI * 180.0,s3a/Math.PI * 180.0,e3a/Math.PI * 180.0]);
 				//drawArc(c2x, c2y, BASE_LENGTH * URAIL_RADIUS_RATIO , s2a, e2a, false); 
 				//drawArc(c1x, c1y, BASE_LENGTH * URAIL_CNCT_R_RATIO , s1a, e1a, false); 
 				//drawArc(c3x, c3y, BASE_LENGTH * URAIL_CNCT_R_RATIO , e3a, s3a, false); 
@@ -877,21 +885,31 @@ em {
 	
     // マウスアップ時の処理
 	function onDragEnd(){
-				if(selectedRail){
-					const selectedJoint = joints.find(joint => isPointClose(selectedRail.x,selectedRail.y,selectedRail.id,joint.x,joint.y,joint.id,CONECT_LIMIT_D));
-					if(selectedJoint){//console.log(selectedJoint);console.log(selectedRail.id);
-						
-					    if(	selectedRail.x != selectedJoint.x && selectedRail.y != selectedJoint.y){
-							selectedRail.angle = selectedJoint.angle;//draw();
-							selectedRail.x = selectedJoint.x;
-							selectedRail.y = selectedJoint.y;
+				if(selectedRail){console.log(selectedRail.angle);
+					const selectedJoint = joints.slice().reverse().filter(joint => isPointClose(selectedRail.x,selectedRail.y,selectedRail.id,joint.x,joint.y,joint.id,CONECT_LIMIT_D));
+					let flag=true;
+					let i;
+					if(selectedJoint.length > 0){
+						for(i=0;i < selectedJoint.length;i++){
+							if(	selectedRail.angle == selectedJoint[i].angle){
+								selectedRail.x = selectedJoint[i].x;
+								selectedRail.y = selectedJoint[i].y;
+								flag = false;console.log(selectedRail.angle +","+selectedJoint[i].angle);
+							}
 						}
+						if(flag){console.log(selectedJoint[0]);
+								selectedRail.angle = selectedJoint[0].angle;//draw();
+								selectedRail.x = selectedJoint[0].x;
+								selectedRail.y = selectedJoint[0].y;
+							    flag = false;
+						}
+						
 					}else{
 					let xe2;
 					let ye2;
 					let angle2;
 					[xe2,ye2,angle2] = CalcRailEnd(selectedRail.x,selectedRail.y,selectedRail.angle,selectedRail.type);
-					const selectedJoint2 = joints.find(joint => isPointClose(xe2,ye2,selectedRail.id,joint.x,joint.y,joint.id,CONECT_LIMIT_D));
+					const selectedJoint2 = joints.slice().reverse().find(joint => isPointClose(xe2,ye2,selectedRail.id,joint.x,joint.y,joint.id,CONECT_LIMIT_D));
 					if(selectedJoint2){
 						if(selectedJoint2.angle == addDeg(angle2,180)){
 							const dfex = selectedJoint2.x - xe2;
@@ -1659,6 +1677,11 @@ function genPath() {
 
 <a href="https://x.com/intent/post?hashtags=jmitani_railway_puzzle&ref_src=twsrc%5Etfw&text=%E3%83%AC%E3%83%BC%E3%83%AB%E3%83%91%E3%82%BA%E3%83%AB&tw_p=tweetbutton&url=http%3A%2F%2Fplalayout.html.xdomain.jp%2Frail-simu%2Ftest.htm" id="rslt_tweet" class="twitter-share-button" >ツイート</a></script>
  <div id='copyright'>
+   <div style="text-align: right;"> Ver.1.0.1 2016.3.12 Jun Mitani <a href="http://mitani.cs.tsukuba.ac.jp/ja/" target="_blank">(Web)</a> <a href="https://twitter.com/jmitani" target="＿blank">(Twitter)</a></div>
+
+   <div style="text-align: right;"> Ver.1.0.2 2016.3.16 aranged by gam0022 <a href="https://github.com/gam0022/jmitani-railway" target="_blank">(Web)</a> </div>
+
+   <div style="text-align: right;"> reffered by plalayout <a href="https://github.com/plalayout/railway_simu" target="_blank">(Web)</a> <a href="https://twitter.com/plalayout" target="＿blank">(Twitter)</a></div>
 
  </div>
 
