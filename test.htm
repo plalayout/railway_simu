@@ -140,6 +140,7 @@ em {
 
 	let CANVASWIDTH  = 750;
 	let CANVASHEIGHT = 750;
+	let bLoopCourse = false;
 //画面ドラッグ関連
 	let isDraggingCanvas = false;
 	let canvasOffsetX = CANVASWIDTH /2;
@@ -299,31 +300,31 @@ em {
 		//レール端点を計算
 	function CalcRailEnd(x,y,angle,type){
 		switch(type){
-			case 'R':case 'L':
+			case 'R':case 'L':case 'r':case 'l':
 					[ex,ey,eAngle] = CalcCurveEnd(x,y,angle,type,1.0);break;
-			case 'S':
+			case 'S':case 's':
 					[ex,ey,eAngle] = CalcStraightEnd(x,y,angle,1.0);break;
-			case 'H':
+			case 'H':case 'h':
 					[ex,ey,eAngle] = CalcStraightEnd(x,y,angle,0.5);break;
-			case 'Q':
+			case 'Q':case 'q':
 					[ex,ey,eAngle] = CalcStraightEnd(x,y,angle,0.25);break;
-			case 'D':
+			case 'D':case 'd':
 					[ex,ey,eAngle] = CalcStraightEnd(x,y,angle,2);break;
-			case 'G': case 'N':
+			case 'G': case 'N':case 'g':case 'n':
 					[ex,ey,eAngle] = CalcCurveEnd(x,y,angle,type,1.0+DOUBLE_TRACK_DISTANCE_RATIO);break;
 //"U"：Uターン（右）"V"：Uターン（左）"A"：複線幅（右）C：複線幅（左）X：Y字幅（右）"Z"：Y字幅（左）
-			case 'A':
+			case 'A':case 'a':
 					[ex,ey,eAngle] = drawSlideRail(x,y,angle, 1.0, DOUBLE_TRACK_DISTANCE_RATIO,0,0);break;
-			case 'C':
+			case 'C':case 'c':
 					[ex,ey,eAngle] = drawSlideRail(x,y,angle, 1.0, -DOUBLE_TRACK_DISTANCE_RATIO,0,0);break;
-			case 'X':
+			case 'X':case 'x':
 					[ex,ey,eAngle] = drawSlideRail(x,y,angle, 1.0, 0.25,0,0);break;
-			case 'Y':
+			case 'Y':case 'y':
 					[ex,ey,eAngle] = drawSlideRail(x,y,angle, 1.0, -0.25,0,0);break;
-			case 'U':case 'V':
+			case 'U':case 'V':case 'u':case 'v':
 					[ex,ey,eAngle] = drawURCurveRail(x,y,angle,type,0,0,0,0);break;
 
-			default:console.log("no type");		
+			default:console.log("no type"+":"+type);		
 		}
 		return [ex,ey,eAngle];
 	}
@@ -460,14 +461,14 @@ em {
 		let cosalpha = BASE_LENGTH * ratio * Math.cos(angle * Math.PI/180);
 		let drawColorArray =[];
 		switch(type){
-			case 'R': case 'L':
+			case 'R': case 'L':case 'r':case 'l':
 			drawColorArray = colorArray;break;
-			case 'G': case 'N':
+			case 'G': case 'N':case 'g': case 'n':
 			drawColorArray = colorArray2;break;
 		}
 
 		switch(type){ 
-			case "R": case "G":{
+			case "R": case "G":case "r": case "g":{
 			const startangle = Math.PI+ angle * Math.PI/180;
 			const endangle   = Math.PI*0.25 + startangle;	
 			const midangle   = Math.PI*0.125+ startangle;
@@ -491,7 +492,7 @@ em {
 
 			break;
 			
-			case "L":case "N":{
+			case "L":case "N":case "l":case "n":{
 
 			const startangle = angle * Math.PI/180;
 			const endangle   = startangle - Math.PI*0.25;	
@@ -522,14 +523,14 @@ em {
 		let cosalpha = BASE_LENGTH * ratio * Math.cos(angle * Math.PI/180);
 
 		switch(type){
-		case 'R':case 'G': 
+		case 'R':case 'G':case 'r':case 'g': 
 			var startangle = Math.PI+ angle * Math.PI/180;
 			var endangle   = Math.PI * 0.25 + startangle;	
 			eX = x + cosalpha + BASE_LENGTH * ratio * Math.cos(endangle);
 			eY = y + sinalpha + BASE_LENGTH * ratio * Math.sin(endangle);
 			eA = addDeg(angle, 45);
 			break;
-		case 'L':case 'N':
+		case 'L':case 'N':case 'l':case 'n':
 				startangle = angle * Math.PI/180;
 				endangle   = startangle - Math.PI*0.25;	
 			eX = x - cosalpha + BASE_LENGTH * ratio * Math.cos(endangle);
@@ -728,7 +729,8 @@ em {
 
 			}
 	    });
-		
+	
+	drawCourse(excourse,'t');	
     if(iConpane)drawRect(-166,-333,333,667);
 	if(showArrowSet){
 		drawArrowset(endX,endY,endAngleDeg);
@@ -746,7 +748,83 @@ em {
     setTOdrawID=setTimeout(draw,15);
 
   }
+  
+function drawCourse(courseArray,courseName) {
+		let eX = endX;
+		let eY = endY;
+		let eA = endAngleDeg;
+		for (let i = 0; i < (bLoopCourse ? 8:1); i++) {
+			//EmRail = false;
+			for(let j = 0; j < courseArray.length; j++) {
+				let repeatNum = 1;
+				let nextRailType = "";
+				switch(courseArray[j]) {
 
+				case "2": case "3": case "4": case "5": case "6": 
+				case "7": case "8": case "9":
+					let t = parseInt(courseArray[j], 10);
+					if(t > 0 && t < 10) {
+						repeatNum = t;
+						j++;
+						nextRailType = courseArray[j];
+					}break;
+
+				default: nextRailType = courseArray[j]; break;
+				 
+				}
+				
+				for(let k = 0; k < repeatNum; k++) {
+
+					//switch(nextRailType) {
+					//case "e": EmRail        = true;j++; nextRailType = courseArray[j]; break;//レール強調（赤表示）
+					//case "f": InvisibleRail = true;j++; nextRailType = courseArray[j]; break;//レール不可視化
+					//}
+
+					switch(nextRailType) {
+					case "R": case 'r':case "L": case "l":  drawCurve(eX,eY,eA,nextRailType,1,courseName); break;//カーブ
+					case "S": case "s":  drawStraight(eX,eY,eA,1.0 ,courseName); break;//直線
+					case "D": case "d":  drawStraight(eX,eY,eA,2.0 ,courseName); break;//倍直線
+					case "H": case "h":  drawStraight(eX,eY,eA,0.5 ,courseName); break;//１／２
+					case "Q": case "q":  drawStraight(eX,eY,eA,0.25,courseName);break;//１／４
+					case "J": case "j":  drawStraight(eX,eY,eA,0.167,courseName); break;//１／６
+					case "A": case "a":  drawSlideRail(eX,eY,eA, 1.0,  DOUBLE_TRACK_DISTANCE_RATIO,1,courseName); break;//複線幅右分岐
+					case "C": case "c":  drawSlideRail(eX,eY,eA, 1.0, -DOUBLE_TRACK_DISTANCE_RATIO,1,courseName); break;//複線幅左分岐
+				//	case "I": case "i":  InvisibleRail = true;drawSlideRail(ctx, 0,  DOUBLE_TRACK_DISTANCE_RATIO); break;//複線幅右ずれ
+				//	case "K": case "k":  InvisibleRail = true;drawSlideRail(ctx, 0, -DOUBLE_TRACK_DISTANCE_RATIO); break;//複線幅左ずれ
+					case "G": case "g": case "N": case "n": drawCurve(eX,eY,eA,nextRailType,1+DOUBLE_TRACK_DISTANCE_RATIO,courseName);  break;//外曲線左カーブ
+					case "X": case "x":  drawSlideRail(eX,eY,eA, 1.0,  0.25,1,courseName); break;//Y字右分岐
+					case "Z": case "z":  drawSlideRail(eX,eY,eA, 1.0, -0.25,1,courseName); break;//Y字左分岐
+					case "U": case "u": case "V": case "v":  drawULCurveRail(eX,eY,eA,nextRailType,1,courseName,0,0);   break;//右カーブ
+
+				//	case "T": case "t":  endAngleDeg += 90; break;
+				//	case "M": case "m":  SavePoint(); break;//レール位置メモリー
+				//	case "b": 	     CallSavePoint(iMarkedPoint-1); break;//レール位置呼び出し
+				//	case "B":  	     --iMarkedPoint;CallSavePoint(iMarkedPoint-1); break;//レール位置呼び出し
+				//	case "O": case "o":  CallSavePoint(iBasePoint); break;//最初のレールの位置呼び出し
+				//	case "P": case "p":  drawPier(ctx); break;//橋脚
+					}//
+					[eX,eY,eA] = CalcRailEnd(eX,eY,eA,nextRailType);
+//					if(DrawAllPier && !InvisibleRail){drawPier(ctx);}
+					//console.log([eX,eY,eA]);
+				}
+//				ClearRailDecorate();
+			}
+		if(i==0){
+			const onecoursedeg = endAngleDeg - eA;
+			switch(onecoursedeg){
+			case 0 : i=8;break;
+			case 90:case -90: i=4;break;
+			case 180: case -180: i=6;break;
+			}}
+			
+//		SavePoint();
+//		iBasePoint = iMarkedPoint-1;	
+		}//8回繰り返し用ループ終わり
+		
+//		if(!bSecondDraw && (AllowAutoScale || bLoopCourse)) {
+//			setViewForWholeShape(ctx);
+//		}
+	}
 
 //タッチパネル	スタート
 	function onTouchstart(ev) {
@@ -1600,7 +1678,43 @@ function genPath() {
 	draw();
 }
 
+
+var excourse = "";
+//var expopt="0,1";
+	function dataUpdate() {
+		var course = document.forms.id_form1.id_textBox1.value;
+		courseArray = course.split("");
+
+		bLoopCourse =  document.forms.id_form1.id_loop.checked;
+//		DrawAllPier =  document.forms.id_form1.id_pier.checked;
+//		AllowAutoScale =  document.forms.id_form1.id_auto.checked;
+//		WriteTextinImg =  document.forms.id_form2.id_wrcourse.checked;
 		
+//		var opt = (bLoopCourse ? "1" : "0") + "," + (DrawAllPier ? "1" : "0");
+//		initCourse();
+		draw();
+//		if(course != excourse || opt != exopt ){
+//		window.location.hash = course + "," + opt;
+		SaveLayoutImg();
+//		}
+		excourse = course;
+//		exopt = opt;
+	}
+	function SaveLayoutImg() {
+//		var ctx2 = document.getElementById("mycanvas2").getContext('2d')	
+		var course = document.forms.id_form1.id_textBox1.value;
+		var data = document.getElementById("railCanvas").toDataURL('image/png');
+
+
+
+		document.getElementById("img_link").href = data;
+		document.getElementById("imgdata").src = data;
+	//	document.forms.id_tweetdataform.id_data.value = data;
+
+
+
+
+	}		
     </script>
 	
 	
@@ -1627,8 +1741,9 @@ function genPath() {
     <input id="btn_S" type="button" value="S" onclick="addRail('S');draw();" class="basic_btn" style="center" />
     <input id="btn_R" type="button" value="R" onclick="addRail('R');draw();" class="basic_btn" style="center" />
  <br/>
-
-    <input id="btn_b" type="button" value="リサイズ" onclick="scaleReset();draw();" class="basic_btn"" />
+ <form name="form1" id="id_form1" action=""><input name="textBox1" id="id_textBox1" type="text" value="" size="40"	onkeydown="" onkeyup="dataUpdate();" onkeypress="" /><div class="ckbx_env"><input class="draw_opt" type="checkbox" value="Loop" onclick="dataUpdate();" id="id_loop"/>ループ</div></form>
+ 	
+   <input id="btn_b" type="button" value="リサイズ" onclick="scaleReset();draw();" class="basic_btn"" />
     <input id="btn_rst" type="button" value="全消" onclick="clearData();" class="scn_btn" /><br/>
     <input id="btn_v" type="button" value="特" onclick="add_SP_Rail('railSelect');draw();" class="scn_btn" style="center" />
 	<label class="scn_btn" for="railSelect"></label>
@@ -1674,7 +1789,9 @@ function genPath() {
 
    <hr>
 <input id="close_Full_scr" type="button" value="□" onclick="closeFullscr();" class="basic_btn"/>:全画面化
-
+<div id="preimg" style="float:left;">
+           <a id="img_link" href=""><img id="imgdata" src="" width="160" height="140"></a>
+</div> <div  style="display:none">  <canvas id="mycanvas2" width="800" height="700"></canvas></div>
 <a href="https://x.com/intent/post?hashtags=jmitani_railway_puzzle&ref_src=twsrc%5Etfw&text=%E3%83%AC%E3%83%BC%E3%83%AB%E3%83%91%E3%82%BA%E3%83%AB&tw_p=tweetbutton&url=http%3A%2F%2Fplalayout.html.xdomain.jp%2Frail-simu%2Ftest.htm" id="rslt_tweet" class="twitter-share-button" >ツイート</a></script>
  <div id='copyright'>
    <div style="text-align: right;"> Ver.1.0.1 2016.3.12 Jun Mitani <a href="http://mitani.cs.tsukuba.ac.jp/ja/" target="_blank">(Web)</a> <a href="https://twitter.com/jmitani" target="＿blank">(Twitter)</a></div>
