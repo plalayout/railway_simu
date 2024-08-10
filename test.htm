@@ -83,6 +83,26 @@ em {
 #dataSelect,#railSelect,#railSelect2{
   border:1px solid black;font-size: 150%;
 }
+
+#contextMenu {
+    display: none;
+    position: absolute;
+    background-color: white;
+    border: 1px solid black;
+    z-index: 1000;
+}
+#contextMenu ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+}
+#contextMenu li {
+            padding: 8px;
+            cursor: pointer;
+}
+#contextMenu li:hover {
+            background-color: #ddd;
+}
     </style>
 
  <script type="text/javascript">
@@ -90,52 +110,10 @@ em {
 		let joints = []; //ジョイント部の配列
 		let canvas;
 		let ctx;
-		let iFullsizeCanvas = false;
+        let contextMenu;
+		let iFullsizeCanvas = false;//全画面化
 		let iConpane = true;
-
-		
-	function init(){
-        canvas = document.getElementById('railCanvas');
-        ctx = canvas.getContext('2d');//console.log(ctx);
-		
-		CANVASWIDTH  = canvas.width;
-		CANVASHEIGHT = canvas.height;
-//画面ドラッグ関連
-		canvasOffsetX = CANVASWIDTH /2;
-		canvasOffsetY = CANVASHEIGHT/2;
-
-		
-		
-		//マウスイベントの呼び出し
-    // マウスクリック時の処理
-    //canvas.addEventListener('mousedown', onDragStart);
-	//ドラッグ時
-    //canvas.addEventListener('mousemove', onDrag ,  false);
-    // マウスクリック時の処理
-    canvas.addEventListener('mousedown', onMouseStart);
-	//ドラッグ時
-    canvas.addEventListener('mousemove', onMouseMove ,  false);
-	// マウスアップ時の処理
-    canvas.addEventListener('mouseup', onDragEnd,  false);
-	//マウスホイール
-	canvas.addEventListener("wheel", onWheel,  false );
-	// マウスダブルクリック時の処理
-    canvas.addEventListener('dblclick', onDblClick ,  false);
-
-//タッチパネル
-	canvas.addEventListener('touchstart',  onTouchstart,  false);
-	canvas.addEventListener('touchend',	onDragEnd,	false);
-	canvas.addEventListener('touchmove',  onTouchMove,  false);
-
-		initCourse();
-        draw();
-
-		resizeEvent();
-		$(window).bind("resize",resizeEvent);
-
-	
-	}
-
+		let iSelectConectionEnd = false;//探索モードのオン
 
 
 	let CANVASWIDTH  = 750;
@@ -190,18 +168,69 @@ em {
 	// 終点位置
 	const INIT_X = 0;
 	const INIT_Y = 0;
-	let endX;
+	let endX;//レールの末端、次のレールの設置スタート場所
 	let endY;
+	let endAngleDeg; //// 終点の角度 -Y軸０　時計回り
 	
-	// 終点の角度
-	let endAngleDeg; // -Y軸０　時計回り
+	let targetX = INIT_X;//探索端点
+	let targetY = INIT_Y;
+	let targetAngleDeg = 0;
 
     let selectedRail = null; // 選択中のレール
-	let LastselectedRail = null;	
+	let LastselectedRail = null;
+	let LastSelectedRailID = null;//最後に接触したレールのID
 	let closestJoitn = null; // 最も近いジョイント
 	let showArrowSet = false;
 	let isshowAlljoint = false; 
 	const CONECT_LIMIT_D = 8.0; //自動接続させる距離
+
+
+	function init(){
+        canvas = document.getElementById('railCanvas');
+        ctx = canvas.getContext('2d');//console.log(ctx);
+		contextMenu = document.getElementById('contextMenu');
+		
+		
+		CANVASWIDTH  = canvas.width;
+		CANVASHEIGHT = canvas.height;
+	//画面ドラッグ関連
+		canvasOffsetX = CANVASWIDTH /2;
+		canvasOffsetY = CANVASHEIGHT/2;
+
+		
+		
+	//マウスイベントの呼び出し
+    // マウスクリック時の処理
+    canvas.addEventListener('mousedown', onMouseStart);
+	//ドラッグ時
+    canvas.addEventListener('mousemove', onMouseMove ,  false);
+	// マウスアップ時の処理
+    canvas.addEventListener('mouseup', onDragEnd,  false);
+	//マウスホイール
+	canvas.addEventListener("wheel", onWheel,  false );
+	// マウスダブルクリック時の処理
+    canvas.addEventListener('dblclick', onDblClick ,  false);
+
+//タッチパネル
+	canvas.addEventListener('touchstart',  onTouchstart,  false);
+	canvas.addEventListener('touchend',	onDragEnd,	false);
+	canvas.addEventListener('touchmove',  onTouchMove,  false);
+
+//テキストメニュー
+	document.getElementById('delete').addEventListener('click', menu_delete, false);
+	document.getElementById('selectEnd').addEventListener('click', menu_selectEnd, false);
+	document.getElementById('serchRoute').addEventListener('click', menu_serchRoute, false);
+
+		initCourse();
+        draw();
+
+		resizeEvent();
+		$(window).bind("resize",resizeEvent);
+
+	
+	}
+
+
 
 //データの保存とロード
 	function save() {
@@ -270,35 +299,42 @@ em {
 
 		//レールを追加
 	function addRail(type){switch(type){
-			case 'R':case 'L':
-					addCurve(endX, endY,endAngleDeg,type,1.0);break;
-			case 'S':
-					addRectangle(endX, endY,endAngleDeg,type,1.0,0);break;
-			case 'H'://1/2直線
-					addRectangle(endX, endY,endAngleDeg,type,0.5,0);break;
-			case 'Q'://1/4直線
-					addRectangle(endX, endY,endAngleDeg,type,0.25,0);break;
-			case 'D'://倍直線
-					addRectangle(endX, endY,endAngleDeg,type,2.0,0);break;
-			case 'G':case 'N'://外側曲線
-					addCurve(endX, endY,endAngleDeg,type,1.0+DOUBLE_TRACK_DISTANCE_RATIO);break;
+			case 'R':case 'r':
+					addCurve(endX, endY,endAngleDeg,'R',1.0);break;
+			case 'L':case 'l':
+					addCurve(endX, endY,endAngleDeg,'L',1.0);break;
+			case 'S':case 's':
+					addRectangle(endX, endY,endAngleDeg,'S',1.0,0);break;
+			case 'H':case 'h'://1/2直線
+					addRectangle(endX, endY,endAngleDeg,'H',0.5,0);break;
+			case 'Q':case 'q'://1/4直線
+					addRectangle(endX, endY,endAngleDeg,'Q',0.25,0);break;
+			case 'D':case 'd'://倍直線
+					addRectangle(endX, endY,endAngleDeg,'D',2.0,0);break;
+			case 'G':case 'g'://外側曲線
+					addCurve(endX, endY,endAngleDeg,'G',1.0+DOUBLE_TRACK_DISTANCE_RATIO);break;
+			case 'N':case 'n'://外側曲線
+					addCurve(endX, endY,endAngleDeg,'N',1.0+DOUBLE_TRACK_DISTANCE_RATIO);break;
 //"U"：Uターン（右）"V"：Uターン（左）"A"：複線幅（右）C：複線幅（左）X：Y字幅（右）"Z"：Y字幅（左）
-			case 'A':
-					addRectangle(endX, endY,endAngleDeg,type,1.0,DOUBLE_TRACK_DISTANCE_RATIO);break;
-			case 'C':
-					addRectangle(endX, endY,endAngleDeg,type,1.0, -DOUBLE_TRACK_DISTANCE_RATIO);break;
-			case 'X':
-					addRectangle(endX, endY,endAngleDeg,type,1.0, 0.25);break;
-			case 'Z':
-					addRectangle(endX, endY,endAngleDeg,type,1.0, -0.25);break;
-			case 'U':case 'V':
-					addUrail(endX,endY,endAngleDeg,type);break;
+			case 'A':case 'a':
+					addRectangle(endX, endY,endAngleDeg,'A',1.0,DOUBLE_TRACK_DISTANCE_RATIO);break;
+			case 'C':case 'c':
+					addRectangle(endX, endY,endAngleDeg,'C',1.0, -DOUBLE_TRACK_DISTANCE_RATIO);break;
+			case 'X':case 'x':
+					addRectangle(endX, endY,endAngleDeg,'X',1.0, 0.25);break;
+			case 'Z':case 'z':
+					addRectangle(endX, endY,endAngleDeg,'Z',1.0, -0.25);break;
+			case 'U':case 'u':
+					addUrail(endX,endY,endAngleDeg,'U');break;
+			case 'V':case 'v':
+					addUrail(endX,endY,endAngleDeg,'V');break;
 			}//console.log(num_rail);
-			LastselectedRail=rails[rails.length-1];//console.log(LastselectedRail);
+			LastselectedRail=rails[rails.length-1];LastSelectedRailID = LastselectedRail.id;//console.log(LastselectedRail);
 
 	}
 		//レール端点を計算
 	function CalcRailEnd(x,y,angle,type){
+		let ex, ey, eAngle;
 		switch(type){
 			case 'R':case 'L':case 'r':case 'l':
 					[ex,ey,eAngle] = CalcCurveEnd(x,y,angle,type,1.0);break;
@@ -339,10 +375,6 @@ em {
 		joints.push(joint1);
 //		if(slide_ratio == 0){
 		[endX,endY,endAngleDeg]=drawSlideRail(x,y,angle, ratio, slide_ratio,0,0);
-//		[endX,endY,endAngleDeg]=CalcStraightEnd(x,y,angle,ratio);
-//		} else{
-//		[endX,endY,endAngleDeg]=drawSlideRail(x,y,angle, ratio, slide_ratio,0);
-//		}
 		const joint2 = {x:endX,y:endY,angle,id:rail_id,j_id:1};
 		joints.push(joint2);
     }
@@ -440,6 +472,9 @@ em {
 
 	//直線レールの終点を計算
 	function CalcStraightEnd(x,y,angle,ratio){
+		let eX;
+		let eY;
+		let eA;
 			const sinalpha = BASE_LENGTH * ratio * Math.sin(angle * Math.PI/180);
 			const cosalpha = BASE_LENGTH * ratio * Math.cos(angle * Math.PI/180);
 			eX = x + sinalpha;
@@ -521,6 +556,7 @@ em {
 	function CalcCurveEnd(x,y,angle,type,ratio){
 		let sinalpha = BASE_LENGTH * ratio * Math.sin(angle * Math.PI/180);
 		let cosalpha = BASE_LENGTH * ratio * Math.cos(angle * Math.PI/180);
+		let eX,eY,eA;
 
 		switch(type){
 		case 'R':case 'G':case 'r':case 'g': 
@@ -586,9 +622,9 @@ em {
 //
 	// Uターンレール(右）	   
 	function drawURCurveRail(sx,sy,angle,type,mode,id,PointX,PointY) {//URAIL_RADIUS_RATIO mode:0終点計算、1描画、2タッチ判定
-		const a = type =='V'?-1:1;
-		const b = type =='V'? 0:1;
-		const c = type =='V'? 1:0;
+		const a = (type =='V'||type =='v')?-1:1;
+		const b = (type =='V'||type =='v')? 0:1;
+		const c = (type =='V'||type =='v')? 1:0;
 		
 	
 		//angle -= 90; 
@@ -675,9 +711,9 @@ em {
 	//	minY = Math.min(minY, c2y - BASE_LENGTH * URAIL_RADIUS_RATIO);
 	//	maxY = Math.max(maxY, c2y + BASE_LENGTH * URAIL_RADIUS_RATIO);
 
-		ex = sx - d1 * deg_cos;
-		ey = sy - d1 * deg_sin;
-		eA = addDeg(angle,180);
+		const ex = sx - d1 * deg_cos;
+		const ey = sy - d1 * deg_sin;
+		const eA = addDeg(angle,180);
 		if(mode ==1){
 		drawJoint(sx,sy,angle);
 		drawJoint(ex,ey,angle);}
@@ -730,7 +766,22 @@ em {
 			}
 	    });
 	
-	drawCourse(excourse,'t');	
+	drawCourse(excourse,'t');
+	
+			if(anotherRouteCount > 0) {
+				if(drawAllRoute){
+					drawAllCourse(ctx);
+					initCourse();
+					drawCourse(ctx, false);
+				}
+				drawAnotherCourse(ctx);
+			}
+	
+	
+	
+	
+	SaveLayoutImg();
+	contextMenu.style.display = 'none';//コンテキストメニューの初期化
     if(iConpane)drawRect(-166,-333,333,667);
 	if(showArrowSet){
 		drawArrowset(endX,endY,endAngleDeg);
@@ -743,13 +794,73 @@ em {
 	}
 
 
-  function draw_interval(){
+	function draw_interval(){
     clearTimeout(setTOdrawID);
     setTOdrawID=setTimeout(draw,15);
 
   }
+
+	function addCourse(courseArray){
+	    let eX = endX;
+		let eY = endY;
+		let eA = endAngleDeg;
+		console.log(courseArray);
+		for (let i = 0; i < (bLoopCourse ? 8:1); i++) {
+			//EmRail = false;
+			for(let j = 0; j < courseArray.length; j++) {
+				let repeatNum = 1;
+				let nextRailType = "";
+				switch(courseArray[j]) {
+
+				case "2": case "3": case "4": case "5": case "6": 
+				case "7": case "8": case "9":
+					let t = parseInt(courseArray[j], 10);
+					if(t > 0 && t < 10) {
+						repeatNum = t;
+						j++;
+						nextRailType = courseArray[j];
+					}break;
+
+				default: nextRailType = courseArray[j]; break;
+				 
+				}
+				
+				for(let k = 0; k < repeatNum; k++) {
+
+					//switch(nextRailType) {
+					//case "e": EmRail        = true;j++; nextRailType = courseArray[j]; break;//レール強調（赤表示）
+					//case "f": InvisibleRail = true;j++; nextRailType = courseArray[j]; break;//レール不可視化
+					//}
+
+					addRail(nextRailType);
+					//[eX,eY,eA] = CalcRailEnd(eX,eY,eA,nextRailType);
+//					if(DrawAllPier && !InvisibleRail){drawPier(ctx);}
+					//console.log([eX,eY,eA]);
+				}
+//				ClearRailDecorate();
+			}
+		if(i==0){
+			const onecoursedeg = endAngleDeg - eA;
+			switch(onecoursedeg){
+			case 0 : i=8;break;
+			case 90:case -90: i=4;break;
+			case 180: case -180: i=6;break;
+			}}
+			
+//		SavePoint();
+//		iBasePoint = iMarkedPoint-1;	
+		}//8回繰り返し用ループ終わり
+		
+//		if(!bSecondDraw && (AllowAutoScale || bLoopCourse)) {
+//			setViewForWholeShape(ctx);
+//		}
+
+	 document.forms.id_form1.id_textBox1.value="";
+	 excourse = "";
+     draw();
+	}
   
-function drawCourse(courseArray,courseName) {
+	function drawCourse(courseArray,courseName) {
 		let eX = endX;
 		let eY = endY;
 		let eA = endAngleDeg;
@@ -794,7 +905,7 @@ function drawCourse(courseArray,courseName) {
 					case "G": case "g": case "N": case "n": drawCurve(eX,eY,eA,nextRailType,1+DOUBLE_TRACK_DISTANCE_RATIO,courseName);  break;//外曲線左カーブ
 					case "X": case "x":  drawSlideRail(eX,eY,eA, 1.0,  0.25,1,courseName); break;//Y字右分岐
 					case "Z": case "z":  drawSlideRail(eX,eY,eA, 1.0, -0.25,1,courseName); break;//Y字左分岐
-					case "U": case "u": case "V": case "v":  drawULCurveRail(eX,eY,eA,nextRailType,1,courseName,0,0);   break;//右カーブ
+					case "U": case "u": case "V": case "v":  drawURCurveRail(eX,eY,eA,nextRailType,1,courseName,0,0);   break;//右カーブ
 
 				//	case "T": case "t":  endAngleDeg += 90; break;
 				//	case "M": case "m":  SavePoint(); break;//レール位置メモリー
@@ -854,7 +965,7 @@ function drawCourse(courseArray,courseName) {
 
 	}
 
-	function onMouseStart(e) {//タッチの挙動をマウスにさせるテスト用
+	function onMouseStart(e) {//タッチの挙動をマウスにさせる
 		const rect = canvas.getBoundingClientRect();
 			preMouseX = (e.clientX - canvasOffsetX - rect.left);
 			preMouseY = (e.clientY - canvasOffsetY - rect.top );
@@ -879,7 +990,7 @@ function drawCourse(courseArray,courseName) {
 	}
 
 
-  function onMouseMove(e) {
+	function onMouseMove(e) {
 		var rect = canvas.getBoundingClientRect();
 		var x = e.clientX - canvasOffsetX - rect.left;
 		var y = e.clientY - canvasOffsetY - rect.top;
@@ -1004,7 +1115,7 @@ function drawCourse(courseArray,courseName) {
 					[endX,endY,endAngleDeg] = CalcRailEnd(selectedRail.x,selectedRail.y,selectedRail.angle,selectedRail.type);
 					renewJointCoord(selectedRail.id,selectedRail.x,selectedRail.y,selectedRail.angle);
 					//console.log(joints);
-					draw();LastselectedRail = selectedRail;
+					draw();LastselectedRail = selectedRail;LastSelectedRailID = selectedRail.id;
 				}
  		
 		//選択したフラグの解除
@@ -1039,7 +1150,7 @@ function drawCourse(courseArray,courseName) {
 
 
 //タッチパネル関連
-  function onTouchMove(ev) {
+	function onTouchMove(ev) {
 		ev.preventDefault();     // デフォルトイベントをキャンセル
 		var e = ev.changedTouches[0];
 
@@ -1094,6 +1205,31 @@ function drawCourse(courseArray,courseName) {
 //		e.preventDefault();
 	}
 
+//	document.getElementById('delete').addEventListener('click', menu_delete, false);
+//	document.getElementById('selectEnd').addEventListener('click', menu_selectEnd, false);
+//	document.getElementById('serchRoute').addEventListener('click', menu_serchRoute, false);
+
+//テキストメニューイベント
+	function menu_delete(){//console.log(rails);console.log(LastSelectedRailID);
+			rails = rails.filter(rail => rail.id != LastSelectedRailID);				
+			joints = joints.filter(joint => joint.id != LastSelectedRailID);
+			draw();	
+	}
+
+	function menu_selectEnd(){
+	if(iSelectConectionEnd == false){
+		iSelectConectionEnd = true;
+		$("#selectEnd").css("background-color", 'red');
+		}else{
+		$("#selectEnd").css("background-color", 'white');
+		iSelectConectionEnd = false;
+		}
+	}
+	
+	function menu_serchRoute(){
+	 genPath();
+	}
+
 	
 
 //レールが移動したときに、ジョイントの座標を更新する関数
@@ -1142,7 +1278,7 @@ function drawCourse(courseArray,courseName) {
 
 //
 	function addDeg(a, b){
-	return (a + b +360) % 360;
+	return (a + b + 360 ) % 360 ;
 	}
 
 //点の距離がリミット以内かつ同じIDでないかを探す関数
@@ -1192,16 +1328,27 @@ function drawCourse(courseArray,courseName) {
 	}
 
 //タッチ点がジョイント矢印の上にあるかどうか
-	function isPointOnJointMark(pointX,pointY){
+	function isPointOnJointMark(pointX,pointY){//
 			 setTimeout(function(){
 	         joints.forEach((joint,index) =>{//console.log(rail.id);
 				const sx = joint.x + 14 * Math.cos(joint.angle *Math.PI/180);
 				const sy = joint.y + 14 * Math.sin(joint.angle *Math.PI/180);
                 if (isPointInRectangle(pointX, pointY,sx,sy,joint.angle, 20)) {
                     //console.log(index);
+					if(!iSelectConectionEnd){
 					endX = joint.x;
 					endY = joint.y;
-					endAngleDeg = joint.angle;draw();return true;
+					endAngleDeg = joint.angle;draw();
+					LastSelectedRailID = joint.id;
+					return true;}
+					else{
+					targetX = joint.x;
+					targetY = joint.y;
+					targetAngleDeg = (joint.angle + 180) % 360;
+					$("#selectEnd").css("background-color", 'yellow');
+
+					
+					}
 				}
 		});
 		},500);
@@ -1291,7 +1438,9 @@ function drawCourse(courseArray,courseName) {
 		drawArrow(xb,yb,-90+angle,-30+angle,r2,8,'green',0);
 		drawArrow(xc,yc, 90+angle, 30+angle,r2,8,'green',1);
 		drawStArrow(x,y,angle,50,5,8,'green')
+       
 
+		showContextMenu(x+50,y +50);
                	//ctx.beginPath();
                 //ctx.strokeStyle = 'blue';
 				//ctx.lineWidth = 1;
@@ -1433,7 +1582,21 @@ function drawCourse(courseArray,courseName) {
 		ctx.fill();
 	}
 
+//操作用のコンテクストメニューを表示
+	function showContextMenu(x,y){
+		const rect = canvas.getBoundingClientRect(); 
 
+  				//showContextMenu(preMouseX + ,preMouseY+ canvasOffsetY + rect.top)
+		x = x * drawScale + canvasOffsetX + rect.left;
+		y = y * drawScale + canvasOffsetY + rect.top;
+	
+        contextMenu.style.left = x + 'px';
+        contextMenu.style.top =  y + 'px';
+        contextMenu.style.display = 'block';
+ 
+
+	
+	}
 //操作用の矢印上にポイントがあるか確認する関数
 	function IsPointOnArrow(PointX,PointY,x,y,a1,a2,radius,width,RotatDir){
 		const dx = PointX - x;
@@ -1577,7 +1740,11 @@ function drawCourse(courseArray,courseName) {
 
     }else{//全面じゃない場合
       $("#railCanvas").attr("width", mainWidth-30);
-  		$("#railCanvas").attr("height", wh - btn_margin - 20 );
+  	  $("#railCanvas").attr("height", wh - btn_margin - 20 );
+
+      $("#imgdata").attr("width", (mainWidth-30)/6);
+  	  $("#imgdata").attr("height", (wh - btn_margin - 20)/6 );
+
 
       $("#btn_nxt").css("position", 'absolute' );
       $("#railCanvas,#btn_R,#btn_S,#btn_L,#close_Full_scr,#btn_b,#btn_rst,#btn_save,#btn_load,#dataSelect").css("position", 'static' );
@@ -1617,11 +1784,63 @@ function drawCourse(courseArray,courseName) {
 
   }
 
-let anotherRouteCount;
-let railAnotherRoute;
-let anotherRouteStock;
-let anotherRouteStockIndex;
-let railUnitStack;
+// ルート基本単位 （別ルート探索で使用する）
+function RailCourse(course, endX, endY, angleOUT, usedQ){ 
+	this.course = course; // S,L,Rによる文字列
+	this.endX = endX; //終点のX座標
+	this.endY = endY; //終点のY座標
+	this.angleOUT = angleOUT; // 出ていく角度
+	this.usedQ = usedQ;
+}
+// レール基本単位 （別ルート探索で使用する）
+function RailUnit(type, angleIN, angleOUT){ 
+	this.type = type; // S,L,R
+	this.angleIN  = angleIN; // 進入角度
+	this.angleOUT = angleOUT; // 出ていく角度
+}
+
+function updateRouteIndexHTML() {
+	var str = "";
+	if(anotherRouteStock.length != 0) { 
+		str = (anotherRouteStockIndex + 1) + "/" + anotherRouteStock.length + " ";
+		for(var i = 0; i < railAnotherRoute.length; i++) {
+			str += railAnotherRoute[i].type;
+		}
+	}
+	document.getElementById("anotherRailInfo2").innerHTML = str + "(" +railAnotherRoute.length +"本)";
+	
+}
+
+var railAnotherRoute; // 表示用の別ルート（RailUnitの配列）
+var railAnotherRoute2;//全路線表示用
+var railOriginalRoute; // 入力ルート（RailUnitの配列）
+var railOriginalRouteCoord;//入力ルートの末端座標
+
+var railUnitStack; // 検索作業用（RailUnitの配列）
+var ROUTE_NUM_LIMIT = 30; // 別ルートの最大確保数
+var RAIL_NUM_MAX;//探索するレールの最大数
+var anotherRouteStock; // 別ルートを格納する配列
+var anotherRouteCount; // 別ルート発見数
+var NextSerchRoute; //次のルート探索の元を格納する配列
+var SerchRailRoute; //配列探索作業用の配列
+var anotherRouteStockIndex; // 現在表示中の別ルート番号
+var useDifferentColor = true; // 別ルートは違う色で表示するか否か
+var drawAllRoute = true;//全ルートを描画する
+var serchLongerRoute = false; //冗長経路を探索する
+var foundShortestRoute;
+var QRailNum_MAX = 6;
+
+// [別のレールは違う色を使う]チェックボックスに対するイベント処理
+function useDifferentColorPressed() {
+	useDifferentColor =  document.forms.id_form1.id_diff_color.checked;
+	draw();
+}
+
+// [全てのルートを描く]チェックボックスに対するイベント処理
+function drawAllRoutePressed() {
+	drawAllRoute =  document.forms.id_form1.id_all_route.checked;
+	draw();
+}
 
 // 別コース生成処理	
 function genPath() {
@@ -1630,9 +1849,7 @@ function genPath() {
 	anotherRouteStock = new Array();
 	anotherRouteStockIndex = 0;
 
-	railUnitStack = new Array();
-	railUnitStack = railOriginalRoute.concat(); // 内容のコピー
-	RAIL_NUM_MAX = railOriginalRoute.length + 8;
+	RAIL_NUM_MAX = 14;
 //	if(RAIL_NUM_MAX > 15) RAIL_NUM_MAX= 14;
 
 	
@@ -1646,7 +1863,6 @@ function genPath() {
 	*/
 				
 	// パスの組み換え
-	console.time('timer1');
 		
 	NextSerchRoute = new Array();
 	NextSerchRoute.push( new RailCourse("", endX, endY, endAngleDeg,0) );	
@@ -1656,7 +1872,6 @@ function genPath() {
 	serchRoute2depth(14);
  
 		
-	console.timeEnd('timer1');
 		
 	if(anotherRouteCount == 0) {
 		document.getElementById("anotherRailInfo").innerHTML = 
@@ -1679,11 +1894,178 @@ function genPath() {
 }
 
 
-var excourse = "";
+function serchRoute2depth(depth) {
+	let eX;//関数内限定の計算終点格納変数
+	let eY;
+	let eA;
+	foundShortestRoute = false;
+	serchEnd = false;
+
+
+	for(j=0;j<depth;j++){
+
+	SerchRailRoute = new Array();
+ 
+	SerchRailRoute = NextSerchRoute.concat();
+
+	nextroutecount = 0;
+
+
+	NextSerchRoute = [];
+	
+
+	for(i=0;i<SerchRailRoute.length;i++){
+ 		courseStr = SerchRailRoute[i].course;
+		startX = SerchRailRoute[i].endX;
+		startY = SerchRailRoute[i].endY;
+		angleIN = SerchRailRoute[i].angleOUT;
+		var usedQ = SerchRailRoute[i].usedQ;
+
+//	console.log("---------------> " + courseStr +","+ startX +","+ startY +","+angleIN );
+
+
+ 
+		//R を追加
+
+			[eX,eY,eA]= CalcRailEnd(startX,startY,angleIN,'R');
+			NextcourseStr = courseStr + "R";			
+
+			if(CheckCourseGoal(NextcourseStr, eX, eY, eA)) serchEnd = true;
+			NextSerchRoute.push( new RailCourse(NextcourseStr, eX, eY, eA, usedQ) ); 			
+
+		//L を追加
+
+			[eX,eY,eA]= CalcRailEnd(startX,startY,angleIN,'L');
+			NextcourseStr = courseStr + "L";			
+
+			if(CheckCourseGoal(NextcourseStr, eX, eY, eA)) serchEnd = true;
+			NextSerchRoute.push( new RailCourse(NextcourseStr, eX, eY, eA, usedQ) ); 			
+
+		//S を追加
+
+			[eX,eY,eA]= CalcRailEnd(startX,startY,angleIN,'S');
+			NextcourseStr = courseStr + "S";			
+
+			if(CheckCourseGoal(NextcourseStr, eX, eY, eA)) serchEnd = true;
+			NextSerchRoute.push( new RailCourse(NextcourseStr, eX, eY, eA, usedQ) ); 			
+
+/*
+		//Q を追加
+			if(usedQ < QRailNum_MAX){
+				var sx = startX;
+				var sy = startY;
+				var ex = sx + UNIT_LENGTH *0.25* Math.cos(angleIN * Math.PI / 180.0);
+				var ey = sy + UNIT_LENGTH *0.25* Math.sin(angleIN * Math.PI / 180.0);
+
+				endX = ex;
+				endY = ey;
+				angleOUT = angleIN;		
+				NextcourseStr = courseStr + "Q";
+				usedQ++;console.log("-Qrail---------> " + usedQ);			
+
+				if(CheckCourseGoal(NextcourseStr, endX, endY, angleOUT)) serchEnd = true;
+				NextSerchRoute.push( new RailCourse(NextcourseStr, endX, endY, angleOUT, usedQ) ); 			
+				
+			}
+*/
+
+		}
+
+		if(serchEnd){
+			if(!serchLongerRoute){
+				return;
+			}else{
+				if(j < depth -3 ) j = depth - 3;
+				
+			}
+
+
+		} 		
+
+		
+	}//	指定された深さの探査終了
+		
+	return;
+
+
+
+
+}
+
+
+function CheckCourseGoal(courseStr, startX, startY, angleIN){
+
+		var courseArr = new Array();
+		var railAnotherRoute = new Array();
+
+ 
+		angleIN = angleIN % 360;
+		if(angleIN <0) angleIN += 360;
+
+ 
+
+		if( (startX - targetX) * (startX - targetX) + (startY - targetY) * (startY - targetY) < 0.1
+		 && angleIN == targetAngleDeg
+		) {
+	console.log("found> " + courseStr +","+ startX +","+ startY +","+angleIN );
+
+		foundShortestRoute = true;
+
+		anotherRouteCount ++;
+		// 見つかった別ルートを格納
+		courseArr = courseStr.split(""); // 内容のコピー
+		for (var i = 0; i < courseArr.length; i++) {
+			railAnotherRoute.push( new RailUnit(courseArr[i],"", "") );
+			}
+		anotherRouteStock.push(railAnotherRoute);
+		return true;
+		}else{
+		return false;
+		}
+		
+}
+
+// [次の別レール]ボタン押下処理
+function nextAnotherRoute(i) { 
+	if(anotherRouteStock.length == 0) return; // 見つかっていなければ何もしない
+		
+	// インデックスのローテート
+	anotherRouteStockIndex += i;
+	if(anotherRouteStockIndex == anotherRouteStock.length) {
+		anotherRouteStockIndex = 0;
+	}
+	if(anotherRouteStockIndex == -1) {
+		anotherRouteStockIndex = anotherRouteStock.length-1;
+	}
+		
+	// 表示ルートの更新
+	railAnotherRoute = anotherRouteStock[anotherRouteStockIndex];
+	
+	updateRouteIndexHTML();
+	
+	draw();
+}
+
+function updateRouteIndexHTML() {
+	var str = "";
+	if(anotherRouteStock.length != 0) { 
+		str = (anotherRouteStockIndex + 1) + "/" + anotherRouteStock.length + " ";
+		for(var i = 0; i < railAnotherRoute.length; i++) {
+			str += railAnotherRoute[i].type;
+		}
+	}
+	document.getElementById("anotherRailInfo2").innerHTML = str + "(" +railAnotherRoute.length +"本)";
+	
+}
+
+
+
+
+  let excourse = "";
 //var expopt="0,1";
 	function dataUpdate() {
-		var course = document.forms.id_form1.id_textBox1.value;
-		courseArray = course.split("");
+		let course = document.forms.id_form1.id_textBox1.value;
+		let courseArray = course.split("");
 
 		bLoopCourse =  document.forms.id_form1.id_loop.checked;
 //		DrawAllPier =  document.forms.id_form1.id_pier.checked;
@@ -1692,12 +2074,12 @@ var excourse = "";
 		
 //		var opt = (bLoopCourse ? "1" : "0") + "," + (DrawAllPier ? "1" : "0");
 //		initCourse();
-		draw();
 //		if(course != excourse || opt != exopt ){
 //		window.location.hash = course + "," + opt;
-		SaveLayoutImg();
+		
 //		}
 		excourse = course;
+		draw();
 //		exopt = opt;
 	}
 	function SaveLayoutImg() {
@@ -1730,7 +2112,9 @@ var excourse = "";
     <canvas id="railCanvas" width="750" height="750"></canvas>
    </div>
  
-
+<form name="form1" id="id_form1" action=""><input name="textBox1" id="id_textBox1" type="text" value="" size="20"	onkeydown="" onkeyup="dataUpdate();" onkeypress="" />
+ <input id="btn_r_add" type="button" value="追加" onclick="addCourse(excourse);" class="btn1" />
+ <div class="ckbx_env"><input class="draw_opt" type="checkbox" value="Loop" onclick="dataUpdate();" id="id_loop"/>ループ</div></form>
 
 
 <br>  
@@ -1741,7 +2125,7 @@ var excourse = "";
     <input id="btn_S" type="button" value="S" onclick="addRail('S');draw();" class="basic_btn" style="center" />
     <input id="btn_R" type="button" value="R" onclick="addRail('R');draw();" class="basic_btn" style="center" />
  <br/>
- <form name="form1" id="id_form1" action=""><input name="textBox1" id="id_textBox1" type="text" value="" size="40"	onkeydown="" onkeyup="dataUpdate();" onkeypress="" /><div class="ckbx_env"><input class="draw_opt" type="checkbox" value="Loop" onclick="dataUpdate();" id="id_loop"/>ループ</div></form>
+ 
  	
    <input id="btn_b" type="button" value="リサイズ" onclick="scaleReset();draw();" class="basic_btn"" />
     <input id="btn_rst" type="button" value="全消" onclick="clearData();" class="scn_btn" /><br/>
@@ -1786,9 +2170,22 @@ var excourse = "";
 
 
    <h2 id="remain_mss"><span id="message"></span></h2>
+ 
+
 
    <hr>
 <input id="close_Full_scr" type="button" value="□" onclick="closeFullscr();" class="basic_btn"/>:全画面化
+
+	<input type="button" value="別ルート生成" onclick="genPath();" />
+	<span id="anotherRailInfo"></span><br>
+	<input type="button" value="前" onclick="nextAnotherRoute(-1);" />
+	<input type="button" value="次の別ルート" onclick="nextAnotherRoute(1);" />
+	<span id="anotherRailInfo2"></span><br>
+	<input type="checkbox" value="Loop" onclick="useDifferentColorPressed();" id="id_diff_color" checked="checked"/>別ルートは別の色で表示する
+	<input type="checkbox" value="Loop" onclick="drawAllRoutePressed();" id="id_all_route" checked="checked"/>全ルートを表示する
+	<input type="checkbox" value="Loop" onclick="serchLongerRoutePressed();" id="id_serch_longer"/>長いルートを検索する
+
+
 <div id="preimg" style="float:left;">
            <a id="img_link" href=""><img id="imgdata" src="" width="160" height="140"></a>
 </div> <div  style="display:none">  <canvas id="mycanvas2" width="800" height="700"></canvas></div>
@@ -1804,6 +2201,13 @@ var excourse = "";
 
 </div>
 
+<div id="contextMenu">
+        <ul>
+            <li id="delete">消去</li>
+            <li id="selectEnd">端点選</li>
+            <li id="serchRoute">探索</li>
+        </ul>
+</div>
 
 </body>
 </html>
