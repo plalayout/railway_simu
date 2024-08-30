@@ -152,10 +152,11 @@ em {
 	
 	
 	const lineWidthArray = [BASE_WIDTH, 12, 6, 4];
-	const colorArray = ["#000000", "#51b5ff", "#1970c1", "#51b5ff"];
+	let colorArray = ["#000000", "#51b5ff", "#1970c1", "#51b5ff"];
+	const colorArray1 = ["#000000", "#51b5ff", "#1970c1", "#51b5ff"];
 	const colorArray2 = ["#000000", "#4195ff", "#1970c1", "#4195ff"];//外側曲線
-	const colorArray3 = ["#19c170", "#51ffb5", "#19c170", "#51ffb5"]; // 別ルート
-	const colorArray4 = ["#f1f1f1", "#e5e5e5", "#f1f1f1", "#e5e5e5"]; // 別ルート
+	const colorArray3 = ["#086235", "#51ffb5", "#19c170", "#51ffb5"]; // 別ルート
+	const colorArray4 = ["#313131", "#e5e5e5", "#f1f1f1", "#e5e5e5"]; // 別ルート
 	const colorArray5 = ["#000000", "#e56565", "#ffaaaa", "#e56565"]; // Uレール
 	const EmcolorArray = ["#ff0000", "#ffaacc", "#ff0000", "#ffaacc"];
 
@@ -258,6 +259,9 @@ em {
 		endX = 0;
 		endY = 0;
 		endAngleDeg = 0;
+		railAnotherRoute= "";
+		anotherRouteStock= [];
+		
 		draw();
 	}
 
@@ -771,10 +775,8 @@ em {
 			if(anotherRouteCount > 0) {
 				if(drawAllRoute){
 					drawAllCourse();
-					initCourse();
-					drawCourse(ctx, false);
 				}
-				drawAnotherCourse(ctx);
+				drawAnotherCourse();
 			}
 	
 	
@@ -799,21 +801,22 @@ em {
 	drawingAnotherCourse = true;
 
 			if(!useDifferentColor) {
-				drawcolorArr = colorArray;
+				colorArray = colorArray1;
 			} else {
-				drawcolorArr = colorArray2;			
+				colorArray = colorArray3;			
 			}
 
 
 console.log(railAnotherRoute);
 		drawCourse(railAnotherRoute,"m");
-
+				
+		colorArray = colorArray1;
 		drawingAnotherCourse = false;
 	}
 
 	function drawAllCourse() {
 		drawingAnotherCourse = true;
-		drawcolorArr = colorArray3;			
+		colorArray = colorArray4;			
 	  	for(var j = 0; j < anotherRouteStock.length; j++){
 		
 		railAnotherRoute2 = anotherRouteStock[j];
@@ -822,6 +825,7 @@ console.log(railAnotherRoute2);
 
 		}
 
+		colorArray = colorArray1;
 		drawingAnotherCourse = false;
 	}
 
@@ -1042,6 +1046,7 @@ console.log(railAnotherRoute2);
 				
 				preMouseX = x;
 				preMouseY = y;
+				draw();
 
         }
   
@@ -1051,11 +1056,11 @@ console.log(railAnotherRoute2);
 			ctx.translate(newX,newY);
 			canvasOffsetX += newX;
 			canvasOffsetY += newY;
+			draw();
 		}
 
 
 
-  		draw();
 
     }
 
@@ -1927,7 +1932,6 @@ function genPath() {
 	updateRouteIndexHTML();
 	
 	onDragEnd();
-	menu_delete();
 	draw();
 }
 
