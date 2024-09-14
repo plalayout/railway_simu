@@ -265,6 +265,13 @@ em {
 		draw();
 	}
 
+	function clearRouteData() {
+		railAnotherRoute= "";
+		anotherRouteStock= [];
+		
+		draw();
+	}
+
 
 
 	function scaleReset(){
@@ -334,6 +341,9 @@ em {
 					addUrail(endX,endY,endAngleDeg,'V');break;
 			}//console.log(num_rail);
 			LastselectedRail=rails[rails.length-1];LastSelectedRailID = LastselectedRail.id;//console.log(LastselectedRail);
+			
+			clearRouteData();
+
 
 	}
 		//レール端点を計算
@@ -770,7 +780,7 @@ em {
 			}
 	    });
 	
-	drawCourse(excourse,'t');
+	drawCourse(excourse,'t',true);
 	
 			if(anotherRouteCount > 0) {
 				if(drawAllRoute){
@@ -899,11 +909,11 @@ console.log(railAnotherRoute2);
      draw();
 	}
   
-	function drawCourse(courseArray,courseName) {
+	function drawCourse(courseArray,courseName,bloop) {
 		let eX = endX;
 		let eY = endY;
 		let eA = endAngleDeg;
-		for (let i = 0; i < (bLoopCourse ? 8:1); i++) {
+		for (let i = 0; i < ((bLoopCourse && bloop) ? 8:1); i++) {
 			//EmRail = false;
 			for(let j = 0; j < courseArray.length; j++) {
 				let repeatNum = 1;
@@ -1046,6 +1056,9 @@ console.log(railAnotherRoute2);
 				
 				preMouseX = x;
 				preMouseY = y;
+
+				clearRouteData();
+
 				draw();
 
         }
@@ -1213,6 +1226,11 @@ console.log(railAnotherRoute2);
 				
 				preMouseX = x;
 				preMouseY = y;
+
+
+				clearRouteData();
+
+
 
         }
   
@@ -2219,10 +2237,11 @@ function updateRouteIndexHTML() {
    <hr>
 <input id="close_Full_scr" type="button" value="□" onclick="closeFullscr();" class="basic_btn"/>:全画面化
 
-	<input type="button" value="別ルート生成" onclick="genPath();" />
+	<input type="button" class="basic_btn"  value="ルート生成" onclick="genPath();" />
 	<span id="anotherRailInfo"></span><br>
-	<input type="button" value="前" onclick="nextAnotherRoute(-1);" />
-	<input type="button" value="次の別ルート" onclick="nextAnotherRoute(1);" />
+	<input type="button" class="basic_btn" value="前" onclick="nextAnotherRoute(-1);" />
+	<input type="button" class="basic_btn" value="次" onclick="nextAnotherRoute(1);" />
+    <input id="btn_rst" type="button" value="消" onclick="clearRouteData();" class="scn_btn" /><br/>
 	<span id="anotherRailInfo2"></span><br>
 	<input type="checkbox" value="Loop" onclick="useDifferentColorPressed();" id="id_diff_color" checked="checked"/>別ルートは別の色で表示する
 	<input type="checkbox" value="Loop" onclick="drawAllRoutePressed();" id="id_all_route" checked="checked"/>全ルートを表示する
