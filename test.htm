@@ -112,7 +112,7 @@ em {
 		let ctx;
         let contextMenu;
 		let iFullsizeCanvas = false;//全画面化
-		let iConpane = true;
+		let iConpane = true; //一畳スペース
 		let iSelectConectionEnd = false;//探索モードのオン
 
 
@@ -320,6 +320,8 @@ em {
 					addRectangle(endX, endY,endAngleDeg,'H',0.5,0);break;
 			case 'Q':case 'q'://1/4直線
 					addRectangle(endX, endY,endAngleDeg,'Q',0.25,0);break;
+			case 'J':case 'j'://1/6直線
+					addRectangle(endX, endY,endAngleDeg,'J',0.16667,0);break;
 			case 'D':case 'd'://倍直線
 					addRectangle(endX, endY,endAngleDeg,'D',2.0,0);break;
 			case 'G':case 'g'://外側曲線
@@ -358,6 +360,8 @@ em {
 					[ex,ey,eAngle] = CalcStraightEnd(x,y,angle,0.5);break;
 			case 'Q':case 'q':
 					[ex,ey,eAngle] = CalcStraightEnd(x,y,angle,0.25);break;
+			case 'J':case 'j':
+					[ex,ey,eAngle] = CalcStraightEnd(x,y,angle,0.1667);break;
 			case 'D':case 'd':
 					[ex,ey,eAngle] = CalcStraightEnd(x,y,angle,2);break;
 			case 'G': case 'N':case 'g':case 'n':
@@ -369,7 +373,7 @@ em {
 					[ex,ey,eAngle] = drawSlideRail(x,y,angle, 1.0, -DOUBLE_TRACK_DISTANCE_RATIO,0,0);break;
 			case 'X':case 'x':
 					[ex,ey,eAngle] = drawSlideRail(x,y,angle, 1.0, 0.25,0,0);break;
-			case 'Y':case 'y':
+			case 'Z':case 'z':
 					[ex,ey,eAngle] = drawSlideRail(x,y,angle, 1.0, -0.25,0,0);break;
 			case 'U':case 'V':case 'u':case 'v':
 					[ex,ey,eAngle] = drawURCurveRail(x,y,angle,type,0,0,0,0);break;
@@ -757,10 +761,11 @@ em {
 			case 'N':
 				drawCurve(rail.x, rail.y,rail.angle,'N',1+DOUBLE_TRACK_DISTANCE_RATIO,rail.id); break;
 			case 'H':
-				drawStraight(rail.x, rail.y, rail.angle,0.5
-				,rail.id); break;
+				drawStraight(rail.x, rail.y, rail.angle,0.5,rail.id); break;
 			case 'Q':
 				drawStraight(rail.x, rail.y, rail.angle,0.25,rail.id); break;
+			case 'J':
+				drawStraight(rail.x, rail.y, rail.angle,0.1667,rail.id); break;
 			case 'D':
 				drawStraight(rail.x, rail.y, rail.angle,2,rail.id); break;
 //"U"：Uターン（右）"V"：Uターン（左）"A"：複線幅（右）C：複線幅（左）X：Y字幅（右）"Z"：Y字幅（左）
@@ -817,7 +822,7 @@ em {
 			}
 
 
-console.log(railAnotherRoute);
+//console.log(railAnotherRoute);
 		drawCourse(railAnotherRoute,"m");
 				
 		colorArray = colorArray1;
@@ -831,7 +836,7 @@ console.log(railAnotherRoute);
 		
 		railAnotherRoute2 = anotherRouteStock[j];
 		drawCourse(railAnotherRoute2,"n");
-console.log(railAnotherRoute2);
+//console.log(railAnotherRoute2);
 
 		}
 
@@ -1366,6 +1371,8 @@ console.log(railAnotherRoute2);
 			return isPointInRectangle(pointX, pointY,x,y,angle,  BASE_LENGTH * 0.5 ); break;
 		case 'Q':
 			return isPointInRectangle(pointX, pointY,x,y,angle,  BASE_LENGTH * 0.25); break;
+		case 'J':
+			return isPointInRectangle(pointX, pointY,x,y,angle,  BASE_LENGTH * 0.1667); break;
 		case 'D':
 			return isPointInRectangle(pointX, pointY,x,y,angle,  BASE_LENGTH * 2); break;
 //"U"：Uターン（右）"V"：Uターン（左）"A"：複線幅（右）C：複線幅（左）X：Y字幅（右）"Z"：Y字幅（左）
@@ -1375,7 +1382,7 @@ console.log(railAnotherRoute2);
 			return isPointOnBelt(pointX, pointY,x,y,angle,1,-DOUBLE_TRACK_DISTANCE_RATIO); break;
 		case 'X':
 			return isPointOnBelt(pointX, pointY,x,y,angle,1,0.25); break;
-		case 'Y':
+		case 'Z':
 			return isPointOnBelt(pointX, pointY,x,y,angle,1,-0.25); break;
 		case 'U':case 'V':
 			return drawURCurveRail(x,y,angle,type,2,0,pointX,pointY); break;
@@ -1876,7 +1883,7 @@ var railOriginalRouteCoord;//入力ルートの末端座標
 
 var railUnitStack; // 検索作業用（RailUnitの配列）
 var ROUTE_NUM_LIMIT = 30; // 別ルートの最大確保数
-var RAIL_NUM_MAX;//探索するレールの最大数
+var RAIL_NUM_MAX = 20;//探索するレールの最大数
 var anotherRouteStock; // 別ルートを格納する配列
 var anotherRouteCount; // 別ルート発見数
 var NextSerchRoute; //次のルート探索の元を格納する配列
@@ -1888,17 +1895,42 @@ var serchLongerRoute = false; //冗長経路を探索する
 var foundShortestRoute;
 var QRailNum_MAX = 6;
 
+
+
+
+// [別のレールは違う色を使う]チェックボックスに対するイベント処理
+function useConpanePressed() {
+	//useDifferentColor =  document.forms.id_form1.id_diff_color.checked;
+	if(document.getElementById('id_conpane').checked){
+	iConpane = true; }else{iConpane = false;}
+	draw();
+}
+
+
 // [別のレールは違う色を使う]チェックボックスに対するイベント処理
 function useDifferentColorPressed() {
-	useDifferentColor =  document.forms.id_form1.id_diff_color.checked;
+	//useDifferentColor =  document.forms.id_form1.id_diff_color.checked;
+	if(document.getElementById('id_diff_color').checked){
+	useDifferentColor = true; }else{useDifferentColor = false;}
 	draw();
 }
 
 // [全てのルートを描く]チェックボックスに対するイベント処理
 function drawAllRoutePressed() {
-	drawAllRoute =  document.forms.id_form1.id_all_route.checked;
+	if(document.getElementById('id_all_route').checked){
+	drawAllRoute = true; }else{drawAllRoute = false;}
+//	drawAllRoute =  document.forms.id_form1.id_all_route.checked;
 	draw();
 }
+
+// [冗長ルート検索]チェックボックスに対するイベント処理
+function serchLongerRoutePressed() {
+	if(document.getElementById('id_serch_longer').checked){
+	serchLongerRoute = true; }else{serchLongerRoute = false;}
+}
+
+
+
 
 // 別コース生成処理	
 function genPath() {
@@ -1907,8 +1939,8 @@ function genPath() {
 	anotherRouteStock = new Array();
 	anotherRouteStockIndex = 0;
 
-	RAIL_NUM_MAX = 14;
-//	if(RAIL_NUM_MAX > 15) RAIL_NUM_MAX= 14;
+	let serchDepthNum = 10 + num_rail;
+	if(serchDepthNum >RAIL_NUM_MAX )serchDepthNum = RAIL_NUM_MAX;
 
 	
 	// debugout
@@ -1927,7 +1959,7 @@ function genPath() {
 
 
 
-	serchRoute2depth(14);
+	serchRoute2depth(serchDepthNum);
  
 		
 		
@@ -1973,6 +2005,7 @@ function serchRoute2depth(depth) {
 
 	NextSerchRoute = [];
 	
+	console.log("depth = " + j + "  serchNUM = " + SerchRailRoute.length + "/" + 3**j );
 
 	for(i=0;i<SerchRailRoute.length;i++){
  		courseStr = SerchRailRoute[i].course;
@@ -1983,7 +2016,9 @@ function serchRoute2depth(depth) {
 
 //	console.log("---------------> " + courseStr +","+ startX +","+ startY +","+angleIN );
 
-
+			if(Math.abs( (courseStr.match(/L/g) || []).length - (courseStr.match(/R/g) || []).length )>8 ) continue;
+ 
+			if( (targetX - startX)**2 + (targetY - startY)**2 > (BASE_LENGTH * (depth -j ))**2) continue;
  
 		//R を追加
 
@@ -2210,6 +2245,8 @@ function updateRouteIndexHTML() {
         <option value="D">倍直線</option>
         <option value="J">ジョイント</option>
    </select>
+	<input type="checkbox" value="" onclick="useConpanePressed();" id="id_conpane" checked="checked"/>一畳分のスペースを表示する
+
 <hr>
 
    <div id="scn_btn_set">
